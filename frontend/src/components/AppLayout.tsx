@@ -3,34 +3,44 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { clearToken } from "@/lib/api";
+import {
+  Search, Package, FileText, Clock, LayoutDashboard,
+  Database, BarChart3, LogOut, Menu, X, BookOpen,
+} from "lucide-react";
 
 const navItems = [
-  { href: "/", label: "🔍 Tìm kiếm", icon: "search" },
-  { href: "/products", label: "📦 Sản phẩm", icon: "products" },
-  { href: "/documents", label: "📄 Tài liệu", icon: "documents" },
-  { href: "/recent", label: "🕐 Gần đây", icon: "recent" },
+  { href: "/", label: "Tìm kiếm", icon: Search },
+  { href: "/products", label: "Sản phẩm", icon: Package },
+  { href: "/documents", label: "Tài liệu", icon: FileText },
+  { href: "/recent", label: "Gần đây", icon: Clock },
 ];
 
 const adminItems = [
-  { href: "/admin", label: "📊 Dashboard", icon: "dashboard" },
-  { href: "/admin/data-sources", label: "📁 Nguồn dữ liệu", icon: "data" },
-  { href: "/admin/analytics", label: "📈 Analytics", icon: "analytics" },
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/data-sources", label: "Nguồn dữ liệu", icon: Database },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!token) { router.push("/login"); return; }
     const u = localStorage.getItem("user");
     if (u) setUser(JSON.parse(u));
   }, [router]);
+
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    if (menuOpen) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [menuOpen]);
 
   const handleLogout = () => {
     clearToken();
@@ -40,49 +50,89 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!user) return null;
 
-  return (
-    <div>
-      <div className="sidebar">
-        <div style={{ padding: "0 1.5rem", marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1.125rem", fontWeight: 700, margin: 0 }}>🔍 Knowledge</h2>
-          <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", margin: "0.25rem 0 0" }}>Tra cứu sản phẩm</p>
-        </div>
+  const initials = (user.full_name || user.username || "U").split(" ").map((s: string) => s[0]).join("").slice(0, 2).toUpperCase();
 
-        <nav>
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`sidebar-link ${pathname === item.href ? "active" : ""}`}
-            >
+  const SidebarContent = () => (
+    <>
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-icon">
+          <BookOpen size={20} />
+        </div>
+        <div>
+          <h2>Knowledge</h2>
+          <p>Tra cứu sản phẩm</p>
+        </div>
+      </div>
+
+      <nav className="sidebar-nav">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href} className={`sidebar-link ${pathname === item.href ? "active" : ""}`}>
+              <Icon size={20} />
               {item.label}
             </Link>
-          ))}
+          );
+        })}
 
-          {user.is_admin && (
-            <>
-              <div style={{ margin: "1.5rem 1.5rem 0.5rem", fontSize: "0.6875rem", textTransform: "uppercase", color: "var(--color-text-muted)", fontWeight: 600, letterSpacing: "0.05em" }}>
-                Admin
-              </div>
-              {adminItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`sidebar-link ${pathname === item.href ? "active" : ""}`}
-                >
+        {user.is_admin && (
+          <>
+            <div className="sidebar-section-label">Admin</div>
+            {adminItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href} className={`sidebar-link ${pathname === item.href ? "active" : ""}`}>
+                  <Icon size={20} />
                   {item.label}
                 </Link>
-              ))}
-            </>
-          )}
-        </nav>
+              );
+            })}
+          </>
+        )}
+      </nav>
 
-        <div style={{ position: "absolute", bottom: "1rem", left: 0, right: 0, padding: "0 1.5rem" }}>
-          <div style={{ fontSize: "0.8125rem", fontWeight: 500 }}>{user.full_name || user.username}</div>
-          <button onClick={handleLogout} style={{ background: "none", border: "none", color: "var(--color-text-muted)", fontSize: "0.75rem", cursor: "pointer", padding: 0, marginTop: "0.25rem" }}>
-            Đăng xuất
-          </button>
+      <div className="sidebar-user">
+        <div className="sidebar-avatar">{initials}</div>
+        <div className="sidebar-user-info">
+          <div className="sidebar-user-name">{user.full_name || user.username}</div>
         </div>
+        <button onClick={handleLogout} className="sidebar-logout" title="Đăng xuất">
+          <LogOut size={18} />
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <div>
+      {/* Mobile topbar */}
+      <div className="mobile-topbar">
+        <button className="mobile-menu-btn" onClick={() => setMenuOpen(true)}>
+          <Menu size={22} />
+        </button>
+        <div className="sidebar-logo-icon" style={{ width: 32, height: 32 }}>
+          <BookOpen size={16} />
+        </div>
+        <h2 style={{ fontSize: "1rem", fontWeight: 600, margin: 0 }}>Knowledge</h2>
+      </div>
+
+      {/* Overlay */}
+      <div className={`sidebar-overlay ${menuOpen ? "active" : ""}`} onClick={() => setMenuOpen(false)} />
+
+      {/* Sidebar */}
+      <div className={`sidebar ${menuOpen ? "open" : ""}`}>
+        <button
+          onClick={() => setMenuOpen(false)}
+          style={{
+            display: menuOpen ? "flex" : "none",
+            position: "absolute", top: "1rem", right: "1rem",
+            background: "none", border: "none", cursor: "pointer",
+            color: "var(--color-text-muted)", padding: 4,
+          }}
+        >
+          <X size={20} />
+        </button>
+        <SidebarContent />
       </div>
 
       <div className="main-content">{children}</div>

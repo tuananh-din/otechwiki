@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { api } from "@/lib/api";
 import Link from "next/link";
+import { Search, Sparkles, Copy, Check, FileText, Loader2 } from "lucide-react";
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -17,16 +18,10 @@ function SearchContent() {
   const [productFilter, setProductFilter] = useState("");
   const [products, setProducts] = useState<any[]>([]);
 
-  useEffect(() => {
-    api.getProducts().then(setProducts).catch(() => {});
-  }, []);
+  useEffect(() => { api.getProducts().then(setProducts).catch(() => {}); }, []);
 
   useEffect(() => {
-    if (q) {
-      setQuery(q);
-      doSearch(q);
-      doAsk(q);
-    }
+    if (q) { setQuery(q); doSearch(q); doAsk(q); }
   }, [q]);
 
   const doSearch = async (searchQuery: string) => {
@@ -34,11 +29,7 @@ function SearchContent() {
     try {
       const res = await api.search(searchQuery, { product_filter: productFilter || undefined });
       setResults(res.results);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* ignore */ } finally { setLoading(false); }
   };
 
   const doAsk = async (searchQuery: string) => {
@@ -46,11 +37,7 @@ function SearchContent() {
     try {
       const res = await api.ask(searchQuery, { product_filter: productFilter || undefined });
       setAiAnswer(res);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setAskLoading(false);
-    }
+    } catch { /* ignore */ } finally { setAskLoading(false); }
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -72,30 +59,33 @@ function SearchContent() {
   return (
     <AppLayout>
       <div style={{ maxWidth: 900 }}>
-        {/* Search bar */}
-        <form onSubmit={handleSearch} style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem" }}>
-          <input
-            className="search-bar"
-            style={{ fontSize: "1rem", padding: "0.75rem 1.25rem" }}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Nhập câu hỏi hoặc từ khóa..."
-          />
+        <form onSubmit={handleSearch} className="search-form-row" style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+          <div className="search-bar-wrapper" style={{ flex: 1, minWidth: 200 }}>
+            <div className="search-bar-icon"><Search size={20} /></div>
+            <input
+              className="search-bar"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Nhập câu hỏi hoặc từ khóa..."
+            />
+          </div>
           <select className="filter-select" value={productFilter} onChange={(e) => setProductFilter(e.target.value)}>
             <option value="">Tất cả sản phẩm</option>
             {products.map((p: any) => (
               <option key={p.slug} value={p.slug}>{p.name}</option>
             ))}
           </select>
-          <button className="btn btn-primary" type="submit">Tìm</button>
+          <button className="btn btn-primary" type="submit">
+            <Search size={16} />
+            <span>Tìm</span>
+          </button>
         </form>
 
-        {/* AI Answer */}
         {askLoading && (
-          <div className="ai-answer-card" style={{ textAlign: "center" }}>
-            <div className="spinner" style={{ margin: "0 auto" }} />
-            <p style={{ color: "var(--color-text-muted)", marginTop: "0.5rem", fontSize: "0.875rem" }}>
-              Đang tạo câu trả lời...
+          <div className="ai-answer-card" style={{ textAlign: "center", padding: "2rem" }}>
+            <Loader2 size={24} className="spinner" style={{ margin: "0 auto" }} />
+            <p style={{ color: "var(--color-text-muted)", marginTop: "0.75rem", fontSize: "0.875rem" }}>
+              Đang tạo câu trả lời AI...
             </p>
           </div>
         )}
@@ -103,11 +93,12 @@ function SearchContent() {
         {aiAnswer && !askLoading && (
           <div className="ai-answer-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
-              <h3 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: 600 }}>
-                ✨ Trả lời AI
-              </h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Sparkles size={18} style={{ color: "var(--color-primary)" }} />
+                <h3 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: 600 }}>Trả lời AI</h3>
+              </div>
               <button className={`copy-btn ${copied ? "copied" : ""}`} onClick={copyAnswer}>
-                {copied ? "✓ Đã copy" : "📋 Copy"}
+                {copied ? <><Check size={14} /><span>Đã copy</span></> : <><Copy size={14} /><span>Copy</span></>}
               </button>
             </div>
             <div className="answer-text">{aiAnswer.answer}</div>
@@ -115,10 +106,9 @@ function SearchContent() {
             {aiAnswer.citations?.length > 0 && (
               <div style={{ marginTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                 {aiAnswer.citations.map((c: any, i: number) => (
-                  <Link key={i} href={`/documents/${c.document_id}`}>
-                    <span className="citation-badge">
-                      📄 {c.document_title}{c.page_number ? `, tr.${c.page_number}` : ""}
-                    </span>
+                  <Link key={i} href={`/documents/${c.document_id}`} className="citation-badge">
+                    <FileText size={12} />
+                    {c.document_title}{c.page_number ? `, tr.${c.page_number}` : ""}
                   </Link>
                 ))}
               </div>
@@ -126,16 +116,17 @@ function SearchContent() {
           </div>
         )}
 
-        {/* Search Results */}
-        <h3 style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", marginBottom: "0.75rem" }}>
-          {loading ? "Đang tìm..." : results.length > 0 ? `${results.length} kết quả` : q ? "Không tìm thấy kết quả" : ""}
-        </h3>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+          <span style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", fontWeight: 500 }}>
+            {loading ? "Đang tìm..." : results.length > 0 ? `${results.length} kết quả` : q ? "Không tìm thấy kết quả" : ""}
+          </span>
+        </div>
 
-        {loading && <div className="spinner" />}
+        {loading && <Loader2 size={24} className="spinner" />}
 
         {results.map((r: any) => (
           <div key={r.id} className="result-item">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", gap: "0.5rem", flexWrap: "wrap" }}>
               <Link href={`/documents/${r.document_id}`} style={{ fontWeight: 600, color: "var(--color-primary)", textDecoration: "none", fontSize: "0.9375rem" }}>
                 {r.document_title}
               </Link>

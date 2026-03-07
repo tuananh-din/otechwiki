@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, setToken } from "@/lib/api";
+import { BookOpen, ArrowRight, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -27,55 +28,74 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
-      <div className="card" style={{ width: 400, padding: "2.5rem" }}>
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🔍</div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>Knowledge Search</h1>
-          <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem", marginTop: "0.5rem" }}>
-            Đăng nhập để tra cứu kiến thức sản phẩm
-          </p>
+    <div className="login-page">
+      <div className="login-branding">
+        <div style={{
+          width: 72, height: 72, borderRadius: 16,
+          background: "rgba(255,255,255,0.15)", backdropFilter: "blur(12px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          marginBottom: "1.5rem",
+        }}>
+          <BookOpen size={36} />
         </div>
+        <h1>Knowledge Search</h1>
+        <p>Hệ thống tra cứu kiến thức sản phẩm nội bộ dành cho Customer Service. Tìm kiếm nhanh, trả lời thông minh.</p>
+      </div>
 
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: "1rem" }}>
-            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.375rem" }}>
-              Tên đăng nhập
-            </label>
-            <input
-              className="input"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Nhập tên đăng nhập"
-              required
-            />
+      <div className="login-form-section">
+        <div className="login-form-card">
+          <div style={{ marginBottom: "2rem" }}>
+            <h2 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.375rem" }}>Đăng nhập</h2>
+            <p style={{ color: "var(--color-text-muted)", fontSize: "0.9375rem" }}>
+              Nhập thông tin tài khoản để truy cập
+            </p>
           </div>
 
-          <div style={{ marginBottom: "1.5rem" }}>
-            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.375rem" }}>
-              Mật khẩu
-            </label>
-            <input
-              className="input"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Nhập mật khẩu"
-              required
-            />
-          </div>
-
-          {error && (
-            <div style={{ color: "var(--color-error)", fontSize: "0.875rem", marginBottom: "1rem", textAlign: "center" }}>
-              {error}
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: "1.25rem" }}>
+              <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.375rem", color: "var(--color-text)" }}>
+                Tên đăng nhập
+              </label>
+              <input
+                className="input"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Nhập tên đăng nhập"
+                required
+                autoFocus
+              />
             </div>
-          )}
 
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: "100%", justifyContent: "center", padding: "0.75rem" }}>
-            {loading ? <span className="spinner" style={{ width: 18, height: 18 }} /> : "Đăng nhập"}
-          </button>
-        </form>
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.375rem", color: "var(--color-text)" }}>
+                Mật khẩu
+              </label>
+              <input
+                className="input"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Nhập mật khẩu"
+                required
+              />
+            </div>
+
+            {error && (
+              <div style={{
+                color: "var(--color-error)", fontSize: "0.875rem",
+                marginBottom: "1rem", padding: "0.75rem",
+                background: "#FEF2F2", borderRadius: 8, textAlign: "center",
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button className="btn btn-primary btn-lg" type="submit" disabled={loading} style={{ width: "100%" }}>
+              {loading ? <Loader2 size={20} className="spinner" /> : <><span>Đăng nhập</span><ArrowRight size={18} /></>}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

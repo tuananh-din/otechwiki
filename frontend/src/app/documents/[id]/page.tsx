@@ -3,6 +3,7 @@ import { useState, useEffect, use } from "react";
 import AppLayout from "@/components/AppLayout";
 import { api } from "@/lib/api";
 import Link from "next/link";
+import { ArrowLeft, FileText, ExternalLink } from "lucide-react";
 
 export default function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -13,32 +14,34 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
     api.getDocument(Number(id)).then(setData).catch(() => {}).finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <AppLayout><div className="spinner" /></AppLayout>;
-  if (!data) return <AppLayout><div className="no-result"><div className="no-result-icon">📄</div>Tài liệu không tồn tại</div></AppLayout>;
+  if (loading) return <AppLayout><div className="spinner" style={{ margin: "3rem auto" }} /></AppLayout>;
+  if (!data) return (
+    <AppLayout>
+      <div className="empty-state"><FileText size={48} /><p>Tài liệu không tồn tại</p></div>
+    </AppLayout>
+  );
 
   const doc = data.document;
 
   return (
     <AppLayout>
       <div style={{ maxWidth: 900 }}>
-        <Link href="/documents" style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", textDecoration: "none" }}>
-          ← Quay lại danh sách
+        <Link href="/documents" style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.375rem" }}>
+          <ArrowLeft size={14} /> Quay lại danh sách
         </Link>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: "1rem" }}>
-          <div>
-            <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: "0 0 0.5rem" }}>{doc.title}</h1>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <span className={`badge ${doc.source_type === "pdf" ? "badge-pdf" : "badge-web"}`}>{doc.source_type.toUpperCase()}</span>
-              {doc.document_type && <span className="badge badge-web">{doc.document_type}</span>}
-              {doc.page_count && <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{doc.page_count} trang</span>}
-            </div>
+        <div style={{ marginTop: "1rem" }}>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: "0 0 0.5rem" }}>{doc.title}</h1>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+            <span className={`badge ${doc.source_type === "pdf" ? "badge-pdf" : "badge-web"}`}>{doc.source_type.toUpperCase()}</span>
+            {doc.document_type && <span className="badge badge-primary">{doc.document_type}</span>}
+            {doc.page_count && <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{doc.page_count} trang</span>}
           </div>
         </div>
 
         {doc.source_url && (
-          <p style={{ fontSize: "0.875rem", marginTop: "1rem" }}>
-            <strong>Nguồn:</strong>{" "}
+          <p style={{ fontSize: "0.875rem", marginTop: "1rem", display: "flex", alignItems: "center", gap: "0.375rem" }}>
+            <ExternalLink size={14} style={{ color: "var(--color-text-muted)" }} />
             <a href={doc.source_url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)" }}>
               {doc.source_url}
             </a>
