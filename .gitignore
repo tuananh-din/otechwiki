@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Environment
+backend/.env
+
+# Uploads
+backend/uploads/
+
+# Test output
+backend/test_output/
+
+# IDE
+.vscode/
+.idea/
+
+# Next.js
+frontend/.next/
+
+# Python cache
+*.cpython-*.pyc
