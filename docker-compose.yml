@@ -38,7 +38,7 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: http://192.168.1.23:8000
+        NEXT_PUBLIC_API_URL: https://packages-stakeholders-humor-moments.trycloudflare.com
     container_name: knowledge_frontend
     restart: unless-stopped
     ports:
