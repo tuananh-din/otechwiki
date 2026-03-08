@@ -6,6 +6,8 @@ import re
 import asyncio
 from typing import Optional
 
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
 async def parse_sitemap(client: httpx.AsyncClient, sitemap_url: str, domain: str, limit: int, found_urls: set[str], visited_sitemaps: set[str]):
     """Recursively parse sitemaps and sitemap indexes."""
     if sitemap_url in visited_sitemaps or len(found_urls) >= limit:
@@ -49,7 +51,7 @@ async def parse_sitemap(client: httpx.AsyncClient, sitemap_url: str, domain: str
 async def discover_urls_recursive(
     homepage_url: str, 
     max_depth: int = 2, 
-    limit: int = 60,
+    limit: int = 200,
     current_depth: int = 0,
     visited: Optional[set[str]] = None,
     found_urls: Optional[set[str]] = None
@@ -76,7 +78,7 @@ async def discover_urls_recursive(
     ]
 
     try:
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True, headers={"User-Agent": USER_AGENT}) as client:
             resp = await client.get(homepage_url)
             if resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "html.parser")
@@ -124,7 +126,7 @@ async def discover_urls_recursive(
 
     return found_urls
 
-async def discover_urls(homepage_url: str, limit: int = 60, depth: int = 2) -> list[str]:
+async def discover_urls(homepage_url: str, limit: int = 200, depth: int = 2) -> list[str]:
     """
     Find sub-pages starting from a homepage URL.
     Tries Sitemap first (Recursive), then falls back to Recursive BFS.
@@ -140,7 +142,7 @@ async def discover_urls(homepage_url: str, limit: int = 60, depth: int = 2) -> l
     ]
     
     try:
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True, headers={"User-Agent": USER_AGENT}) as client:
             # Check robots.txt
             robots_resp = await client.get(urljoin(homepage_url, "/robots.txt"))
             if robots_resp.status_code == 200:

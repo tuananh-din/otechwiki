@@ -51,20 +51,23 @@ async def hybrid_search(
 
     sql = text(f"""
         WITH keyword_results AS (
-            SELECT c.id, c.content, c.document_id, c.page_number, c.section_title,
+            SELECT c.id, COALESCE(c.cleaned_content, c.content) as content,
+                   c.document_id, c.page_number, c.section_title,
                    d.title as document_title, d.source_type,
-                   ts_rank(to_tsvector('simple', c.content), plainto_tsquery('simple', :query)) as kw_score,
-                   ROW_NUMBER() OVER (ORDER BY ts_rank(to_tsvector('simple', c.content), plainto_tsquery('simple', :query)) DESC) as kw_rank
+                   ts_rank(to_tsvector('simple', COALESCE(c.cleaned_content, c.content)), plainto_tsquery('simple', :query)) as kw_score,
+                   ROW_NUMBER() OVER (ORDER BY ts_rank(to_tsvector('simple', COALESCE(c.cleaned_content, c.content)), plainto_tsquery('simple', :query)) DESC) as kw_rank
             FROM chunks c
             JOIN documents d ON c.document_id = d.id
             {filter_join}
             WHERE d.status = 'ready'
-              AND to_tsvector('simple', c.content) @@ plainto_tsquery('simple', :keywords)
+              AND (c.is_searchable = true OR c.is_searchable IS NULL)
+              AND to_tsvector('simple', COALESCE(c.cleaned_content, c.content)) @@ plainto_tsquery('simple', :keywords)
               {filter_where}
             LIMIT 20
         ),
         semantic_results AS (
-            SELECT c.id, c.content, c.document_id, c.page_number, c.section_title,
+            SELECT c.id, COALESCE(c.cleaned_content, c.content) as content,
+                   c.document_id, c.page_number, c.section_title,
                    d.title as document_title, d.source_type,
                    1 - (c.embedding <=> CAST(:embedding AS vector)) as sem_score,
                    ROW_NUMBER() OVER (ORDER BY c.embedding <=> CAST(:embedding AS vector)) as sem_rank
@@ -72,6 +75,7 @@ async def hybrid_search(
             JOIN documents d ON c.document_id = d.id
             {filter_join}
             WHERE d.status = 'ready'
+              AND (c.is_searchable = true OR c.is_searchable IS NULL)
               AND c.embedding IS NOT NULL
               {filter_where}
             LIMIT 20
@@ -115,13 +119,15 @@ async def hybrid_search(
 async def keyword_search(db: AsyncSession, query: str, limit: int = 10) -> list[dict]:
     """Pure keyword search using PostgreSQL full-text search."""
     sql = text("""
-        SELECT c.id, c.content, c.document_id, c.page_number, c.section_title,
+        SELECT c.id, COALESCE(c.cleaned_content, c.content) as content,
+               c.document_id, c.page_number, c.section_title,
                d.title as document_title, d.source_type,
-               ts_rank(to_tsvector('simple', c.content), plainto_tsquery('simple', :query)) as score
+               ts_rank(to_tsvector('simple', COALESCE(c.cleaned_content, c.content)), plainto_tsquery('simple', :query)) as score
         FROM chunks c
         JOIN documents d ON c.document_id = d.id
         WHERE d.status = 'ready'
-          AND to_tsvector('simple', c.content) @@ plainto_tsquery('simple', :query)
+          AND (c.is_searchable = true OR c.is_searchable IS NULL)
+          AND to_tsvector('simple', COALESCE(c.cleaned_content, c.content)) @@ plainto_tsquery('simple', :query)
         ORDER BY score DESC
         LIMIT :limit
     """)

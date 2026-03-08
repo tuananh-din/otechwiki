@@ -7,7 +7,7 @@ from app.models.document import SearchLog
 from app.services.search import hybrid_search, keyword_search
 from app.services.rag import ask_with_rag
 from app.schemas.schemas import SearchRequest, SearchResponse, ChunkResult, AskRequest, AskResponse, Citation
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -48,16 +48,19 @@ async def ask(req: AskRequest, db: AsyncSession = Depends(get_db), user: User = 
         answer=result["answer"],
         citations=[Citation(**c) for c in result["citations"]],
         no_result=result["no_result"],
+        answer_type=result.get("answer_type", "standard"),
+        follow_up_questions=result.get("follow_up_questions", []),
     )
 
 
 @router.get("/recent-searches")
 async def recent_searches(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     result = await db.execute(
-        select(SearchLog)
+        select(SearchLog.query, func.max(SearchLog.created_at).label("last_at"))
         .where(SearchLog.user_id == user.id)
-        .order_by(SearchLog.created_at.desc())
-        .limit(20)
+        .group_by(SearchLog.query)
+        .order_by(func.max(SearchLog.created_at).desc())
+        .limit(8)
     )
-    logs = result.scalars().all()
-    return [{"query": l.query, "type": l.search_type, "created_at": l.created_at.isoformat()} for l in logs]
+    rows = result.all()
+    return [{"query": r[0], "created_at": r[1].isoformat()} for r in rows]

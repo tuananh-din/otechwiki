@@ -1,6 +1,7 @@
 import os
 import shutil
 from urllib.parse import urlparse
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -12,6 +13,7 @@ from app.models.document import Document, Chunk, Product, document_products
 from app.services.ingest import ingest_web
 from app.schemas.schemas import DocumentResponse, ProductResponse, ProductCreate, AnalyticsResponse
 from app.services.discovery import discover_urls
+from app.services.import_jobs import start_import_job, get_job
 
 settings = get_settings()
 router = APIRouter(prefix="/api", tags=["documents"])
@@ -106,6 +108,54 @@ async def get_document(doc_id: int, db: AsyncSession = Depends(get_db), user: Us
     }
 
 
+# --- Delete Documents ---
+@router.delete("/documents/{doc_id}")
+async def delete_document(doc_id: int, db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    doc = await db.get(Document, doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Delete product links first
+    await db.execute(document_products.delete().where(document_products.c.document_id == doc_id))
+    # Delete document (chunks cascade automatically)
+    await db.delete(doc)
+    await db.commit()
+
+    # Remove uploaded file if exists
+    if doc.source_path and os.path.exists(doc.source_path):
+        os.remove(doc.source_path)
+
+    return {"message": f"Document '{doc.title}' deleted", "id": doc_id}
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+@router.post("/documents/bulk-delete")
+async def bulk_delete_documents(req: BulkDeleteRequest, db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    if not req.ids:
+        raise HTTPException(status_code=400, detail="No document IDs provided")
+
+    # Fetch all docs to delete
+    result = await db.execute(select(Document).where(Document.id.in_(req.ids)))
+    docs = result.scalars().all()
+
+    if not docs:
+        raise HTTPException(status_code=404, detail="No documents found")
+
+    deleted_ids = []
+    for doc in docs:
+        await db.execute(document_products.delete().where(document_products.c.document_id == doc.id))
+        if doc.source_path and os.path.exists(doc.source_path):
+            os.remove(doc.source_path)
+        await db.delete(doc)
+        deleted_ids.append(doc.id)
+
+    await db.commit()
+    return {"message": f"Deleted {len(deleted_ids)} documents", "deleted_ids": deleted_ids}
+
+
 # --- Admin: Upload & Ingest ---
 @router.post("/admin/upload-document")
 async def upload_document(
@@ -116,6 +166,11 @@ async def upload_document(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
+    # Check duplicate title
+    existing = await db.execute(select(Document).where(Document.title == title))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail=f"Document with title '{title}' already exists")
+
     ext = file.filename.lower().split(".")[-1]
     if ext not in ["pdf", "pptx"]:
         raise HTTPException(status_code=400, detail="Only PDF and PPTX files accepted")
@@ -167,6 +222,10 @@ async def ingest_web_page(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
+    # Check duplicate URL
+    existing = await db.execute(select(Document).where(Document.source_url == url))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail=f"URL '{url}' already imported")
     doc = Document(title=title, source_type="web", source_url=url, document_type=document_type)
     db.add(doc)
     await db.commit()
@@ -186,7 +245,7 @@ async def ingest_web_page(
 @router.post("/admin/scan-urls")
 async def scan_urls(
     homepage_url: str = Form(...),
-    limit: int = Form(60),
+    limit: int = Form(200),
     depth: int = Form(2),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -250,6 +309,249 @@ async def bulk_ingest_web(
             results.append({"url": url, "error": str(e), "status": "error"})
             
     return {"processed": len(urls), "success": success_count, "details": results}
+
+
+class StartImportRequest(BaseModel):
+    urls: list[str]
+    document_type: str = "company_info"
+    product_ids: list[int] = []
+    reimport: bool = True
+
+
+@router.post("/admin/start-import")
+async def start_import(req: StartImportRequest, admin: User = Depends(require_admin)):
+    """Start background import job. Returns job_id for polling."""
+    if not req.urls:
+        raise HTTPException(status_code=400, detail="No URLs provided")
+    job_id = await start_import_job(
+        urls=req.urls,
+        document_type=req.document_type,
+        product_ids=req.product_ids,
+        reimport=req.reimport,
+    )
+    return {"job_id": job_id, "total": len(req.urls)}
+
+
+@router.get("/admin/import-job/{job_id}")
+async def get_import_status(job_id: str, admin: User = Depends(require_admin)):
+    """Poll background import job progress."""
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+# --- Autocomplete ---
+@router.get("/autocomplete")
+async def autocomplete(q: str = "", db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    """Public autocomplete — zero LLM token, DB-backed."""
+    from app.services.autocomplete import search_suggestions, get_default_suggestions
+    if not q.strip():
+        return await get_default_suggestions(db)
+    return await search_suggestions(db, q)
+
+
+@router.get("/admin/autocomplete-entries")
+async def list_autocomplete_entries(db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    from app.models.document import AutocompleteEntry
+    result = await db.execute(
+        select(AutocompleteEntry).where(AutocompleteEntry.active == True).order_by(AutocompleteEntry.priority.desc())
+    )
+    entries = result.scalars().all()
+    return [{"id": e.id, "category": e.category, "query": e.query, "intent": e.intent, "priority": e.priority} for e in entries]
+
+
+class BulkAutocompleteRequest(BaseModel):
+    entries: list[dict]
+
+
+@router.post("/admin/autocomplete-entries")
+async def save_autocomplete_entries(req: BulkAutocompleteRequest, db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Bulk replace autocomplete entries from admin config."""
+    from app.models.document import AutocompleteEntry
+    from app.services.autocomplete import _cache
+    # Delete all custom entries
+    await db.execute(AutocompleteEntry.__table__.delete())
+    count = 0
+    for e in req.entries:
+        entry = AutocompleteEntry(
+            category=e.get("category", "curated"),
+            query=e["query"],
+            intent=e.get("intent"),
+            priority=e.get("priority", 5),
+            active=True,
+        )
+        db.add(entry)
+        count += 1
+    await db.commit()
+    _cache.clear()
+    return {"saved": count}
+
+
+@router.post("/admin/seed-autocomplete")
+async def seed_autocomplete_endpoint(db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    from app.services.seed_autocomplete import seed_autocomplete
+    from app.services.autocomplete import _cache
+    result = await seed_autocomplete(db)
+    _cache.clear()
+    return result
+
+
+# --- Admin: V2 Pipeline ---
+
+
+@router.post("/admin/reprocess/{document_id}")
+async def reprocess_document(document_id: int, db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Reprocess a single document through V2 pipeline."""
+    doc = await db.get(Document, document_id)
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    if doc.source_type != "web" or not doc.source_url:
+        raise HTTPException(400, "Only web documents can be reprocessed")
+
+    chunks_count = await ingest_web(db, document_id, doc.source_url)
+    return {"document_id": document_id, "chunks": chunks_count, "status": "reprocessed"}
+
+
+@router.post("/admin/reprocess-all")
+async def reprocess_all(db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Reprocess all web documents through V2 pipeline."""
+    result = await db.execute(
+        select(Document).where(Document.source_type == "web", Document.source_url.isnot(None))
+    )
+    docs = result.scalars().all()
+
+    processed = 0
+    errors = 0
+    for doc in docs:
+        try:
+            await ingest_web(db, doc.id, doc.source_url)
+            processed += 1
+        except Exception:
+            errors += 1
+
+    # Seed aliases after reprocessing
+    from app.services.mapper_v2 import seed_aliases
+    alias_count = await seed_aliases(db)
+
+    return {"processed": processed, "errors": errors, "total": len(docs), "aliases_created": alias_count}
+
+
+@router.get("/admin/cleaning-stats")
+async def cleaning_stats(db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Get cleaning pipeline statistics."""
+    # Total counts
+    total_docs = (await db.execute(select(func.count(Document.id)))).scalar() or 0
+    total_chunks = (await db.execute(select(func.count(Chunk.id)))).scalar() or 0
+    searchable_chunks = (await db.execute(
+        select(func.count(Chunk.id)).where(Chunk.is_searchable == True)
+    )).scalar() or 0
+
+    # Cleaning status breakdown
+    cleaning_result = await db.execute(
+        select(Document.cleaning_status, func.count(Document.id)).group_by(Document.cleaning_status)
+    )
+    cleaning_breakdown = {r[0] or "unknown": r[1] for r in cleaning_result.all()}
+
+    # Page type breakdown
+    page_type_result = await db.execute(
+        select(Document.page_type, func.count(Document.id)).group_by(Document.page_type)
+    )
+    page_type_breakdown = {r[0] or "unknown": r[1] for r in page_type_result.all()}
+
+    # Mapping coverage
+    mapped = (await db.execute(
+        select(func.count(func.distinct(document_products.c.document_id)))
+    )).scalar() or 0
+
+    return {
+        "total_documents": total_docs,
+        "total_chunks": total_chunks,
+        "searchable_chunks": searchable_chunks,
+        "non_searchable_chunks": total_chunks - searchable_chunks,
+        "cleaning_breakdown": cleaning_breakdown,
+        "page_type_breakdown": page_type_breakdown,
+        "mapping_coverage": {
+            "mapped": mapped,
+            "unmapped": total_docs - mapped,
+            "percentage": round(mapped / max(total_docs, 1) * 100, 1)
+        }
+    }
+
+
+# --- Admin: Product Mapping ---
+@router.post("/admin/auto-map")
+async def auto_map(db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Auto-extract products from document titles and map documents."""
+    from app.services.product_mapper import auto_create_products, auto_map_documents
+    created = await auto_create_products(db)
+    mapped = await auto_map_documents(db)
+    return {"products_created": len(created), "products": created, **mapped}
+
+
+@router.get("/admin/product-matrix")
+async def get_product_matrix(db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Get product × document_type coverage matrix."""
+    doc_types = ["product_spec", "faq", "manual", "comparison", "warranty", "troubleshooting", "policy", "company_info"]
+
+    # Get all products with their documents
+    products_result = await db.execute(select(Product).order_by(Product.name))
+    products = products_result.scalars().all()
+
+    matrix = []
+    for product in products:
+        # Get documents for this product
+        docs_result = await db.execute(
+            select(Document.id, Document.title, Document.document_type, Document.status)
+            .join(document_products, Document.id == document_products.c.document_id)
+            .where(document_products.c.product_id == product.id, Document.status == "ready")
+        )
+        docs = docs_result.all()
+
+        # Build coverage map
+        coverage = {}
+        doc_details = {}
+        for d in docs:
+            dt = d.document_type or "company_info"
+            coverage[dt] = coverage.get(dt, 0) + 1
+            if dt not in doc_details:
+                doc_details[dt] = []
+            doc_details[dt].append({"id": d.id, "title": d.title})
+
+        # Calculate chunks
+        chunk_count_result = await db.execute(
+            select(func.count(Chunk.id))
+            .join(Document, Chunk.document_id == Document.id)
+            .join(document_products, Document.id == document_products.c.document_id)
+            .where(document_products.c.product_id == product.id)
+        )
+        total_chunks = chunk_count_result.scalar() or 0
+
+        matrix.append({
+            "id": product.id,
+            "name": product.name,
+            "slug": product.slug,
+            "category": product.category,
+            "coverage": {dt: coverage.get(dt, 0) for dt in doc_types},
+            "doc_details": doc_details,
+            "total_docs": len(docs),
+            "total_chunks": total_chunks,
+            "coverage_score": sum(1 for dt in doc_types if coverage.get(dt, 0) > 0),
+        })
+
+    # Count unmapped docs
+    mapped_ids_result = await db.execute(select(document_products.c.document_id).distinct())
+    mapped_ids = {r[0] for r in mapped_ids_result.all()}
+    total_docs_result = await db.execute(select(func.count(Document.id)).where(Document.status == "ready"))
+    total_docs = total_docs_result.scalar() or 0
+    unmapped = total_docs - len(mapped_ids)
+
+    return {
+        "products": sorted(matrix, key=lambda x: -x["coverage_score"]),
+        "unmapped_docs": unmapped,
+        "total_docs": total_docs,
+        "doc_types": doc_types,
+    }
 
 
 # --- Admin: Analytics ---

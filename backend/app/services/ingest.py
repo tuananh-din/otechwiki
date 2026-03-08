@@ -174,7 +174,12 @@ async def ingest_pdf(db: AsyncSession, document_id: int, file_path: str) -> int:
 
 
 async def ingest_web(db: AsyncSession, document_id: int, url: str) -> int:
-    """Crawl a web page, extract text, chunk it, embed it, and store."""
+    """V2 Pipeline: fetch → clean → dedup → smart_chunk → embed → map."""
+    from app.services.cleaner import clean_html, detect_page_type, extract_domain
+    from app.services.dedup import dedup_blocks, dedup_chunks
+    from app.services.chunker_v2 import smart_chunk
+    from app.services.mapper_v2 import map_document_v2, apply_mappings
+
     doc_record = await db.get(Document, document_id)
     if not doc_record:
         raise ValueError(f"Document {document_id} not found")
@@ -183,45 +188,99 @@ async def ingest_web(db: AsyncSession, document_id: int, url: str) -> int:
     await db.commit()
 
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            if settings.web_extractor_url:
-                # Use Defuddle worker
-                extractor_url = settings.web_extractor_url.rstrip("/")
-                target_url = url
-                # The worker endpoint is GET /<url>
-                fetch_url = f"{extractor_url}/{target_url}"
-                resp = await client.get(fetch_url)
-                resp.raise_for_status()
-                text = resp.text
-            else:
-                # Fallback to BeautifulSoup
-                resp = await client.get(url)
-                resp.raise_for_status()
-                soup = BeautifulSoup(resp.text, "html.parser")
-                # Remove script, style, nav elements
-                for tag in soup(["script", "style", "nav", "footer", "header"]):
-                    tag.decompose()
-                text = soup.get_text(separator="\n", strip=True)
+        # 1. Fetch HTML
+        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers=headers) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            raw_html = resp.text
 
-        if not text:
+        # 2. Detect page type and domain
+        page_type = detect_page_type(url, raw_html)
+        domain = extract_domain(url)
+        doc_record.page_type = page_type
+        doc_record.domain = domain
+
+        # 3. Clean HTML (rule-based, 0 tokens)
+        if settings.web_extractor_url:
+            # Use Defuddle worker for extraction
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True, headers=headers) as client:
+                extractor_url = settings.web_extractor_url.rstrip("/")
+                fetch_url = f"{extractor_url}/{url}"
+                ext_resp = await client.get(fetch_url)
+                ext_resp.raise_for_status()
+                raw_text = ext_resp.text
+                cleaned_text = raw_text  # Defuddle already cleans
+        else:
+            # BS4 + custom boilerplate removal
+            clean_result = clean_html(raw_html, page_type)
+            raw_text = clean_result["raw_text"]
+            cleaned_text = clean_result["cleaned_text"]
+
+        if not cleaned_text or not cleaned_text.strip():
+            doc_record.status = "error"
+            doc_record.cleaning_status = "error"
+            await db.commit()
+            return 0
+
+        # 4. Save raw + cleaned text
+        doc_record.raw_text = raw_text
+        doc_record.cleaned_text = cleaned_text
+        doc_record.cleaning_status = "cleaned"
+
+        # 5. Dedup blocks within page
+        deduped_text = dedup_blocks(cleaned_text)
+
+        # 6. Smart chunk (heading-aware)
+        all_chunks = smart_chunk(deduped_text, document_title=doc_record.title)
+
+        if not all_chunks:
             doc_record.status = "error"
             await db.commit()
             return 0
 
-        all_chunks = split_into_chunks(text, document_title=doc_record.title)
+        # 7. Dedup chunks
+        all_chunks = dedup_chunks(all_chunks)
 
-        texts = [c["text"] for c in all_chunks]
-        embeddings = await get_embeddings_batch(texts)
+        # 8. Embed only searchable chunks
+        searchable = [c for c in all_chunks if c.get("is_searchable", True)]
+        if searchable:
+            texts = [c["cleaned_content"] for c in searchable]
+            embeddings = await get_embeddings_batch(texts)
+        else:
+            embeddings = []
 
-        for chunk, embedding in zip(all_chunks, embeddings):
+        # 9. Delete old chunks for this document
+        from sqlalchemy import delete as sa_delete
+        await db.execute(sa_delete(Chunk).where(Chunk.document_id == document_id))
+
+        # 10. Save all chunks (searchable gets embedding, non-searchable gets null)
+        embed_idx = 0
+        for chunk_data in all_chunks:
+            is_search = chunk_data.get("is_searchable", True)
             db_chunk = Chunk(
                 document_id=document_id,
-                content=chunk["text"],
-                embedding=embedding,
-                chunk_index=chunk["index"],
-                token_count=chunk["token_count"],
+                content=chunk_data["content"],
+                cleaned_content=chunk_data.get("cleaned_content"),
+                embedding=embeddings[embed_idx] if is_search and embed_idx < len(embeddings) else None,
+                chunk_index=chunk_data["chunk_index"],
+                token_count=chunk_data.get("token_count", 0),
+                section_title=chunk_data.get("section_title"),
+                section_path=chunk_data.get("section_path"),
+                is_searchable=is_search,
+                dedup_hash=chunk_data.get("dedup_hash"),
             )
             db.add(db_chunk)
+            if is_search:
+                embed_idx += 1
+
+        # 11. Confidence mapping
+        try:
+            mappings = await map_document_v2(db, doc_record)
+            if mappings:
+                await apply_mappings(db, doc_record, mappings)
+        except Exception:
+            pass  # Mapping errors should not block ingestion
 
         doc_record.status = "ready"
         await db.commit()
@@ -229,6 +288,7 @@ async def ingest_web(db: AsyncSession, document_id: int, url: str) -> int:
 
     except Exception as e:
         doc_record.status = "error"
+        doc_record.cleaning_status = "error"
         await db.commit()
         raise e
 async def ingest_ppt(db: AsyncSession, document_id: int, file_path: str) -> int:

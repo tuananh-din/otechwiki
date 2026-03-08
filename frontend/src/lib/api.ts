@@ -96,4 +96,47 @@ export const api = {
 
   createUser: (data: { username: string; password: string; full_name?: string; is_admin?: boolean }) =>
     apiFetch<any>("/api/auth/users", { method: "POST", body: JSON.stringify(data) }),
+
+  deleteDocument: (id: number) =>
+    apiFetch<any>(`/api/documents/${id}`, { method: "DELETE" }),
+
+  deleteDocuments: (ids: number[]) =>
+    apiFetch<any>("/api/documents/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }),
+
+  startImport: (data: { urls: string[]; document_type?: string; product_ids?: number[]; reimport?: boolean }) =>
+    apiFetch<{ job_id: string; total: number }>("/api/admin/start-import", { method: "POST", body: JSON.stringify(data) }),
+
+  getImportJob: (jobId: string) =>
+    apiFetch<any>(`/api/admin/import-job/${jobId}`),
+
+  autoMap: () =>
+    apiFetch<any>("/api/admin/auto-map", { method: "POST" }),
+
+  getProductMatrix: () =>
+    apiFetch<any>("/api/admin/product-matrix"),
+
+  autocomplete: (q: string) =>
+    apiFetch<any[]>(`/api/autocomplete?q=${encodeURIComponent(q)}`),
+
+  getAutocompleteEntries: () =>
+    apiFetch<any[]>("/api/admin/autocomplete-entries"),
+
+  saveAutocompleteEntries: (entries: any[]) =>
+    apiFetch<any>("/api/admin/autocomplete-entries", {
+      method: "POST",
+      body: JSON.stringify({ entries }),
+    }),
+
+  seedAutocomplete: () =>
+    apiFetch<any>("/api/admin/seed-autocomplete", { method: "POST" }),
+
+  // V2 Pipeline
+  cleaningStats: () =>
+    apiFetch<any>("/api/admin/cleaning-stats"),
+
+  reprocessDocument: (docId: number) =>
+    apiFetch<any>(`/api/admin/reprocess/${docId}`, { method: "POST" }),
+
+  reprocessAll: () =>
+    apiFetch<any>("/api/admin/reprocess-all", { method: "POST" }),
 };

@@ -76,6 +76,8 @@ class AskResponse(BaseModel):
     answer: str
     citations: list[Citation]
     no_result: bool = False
+    answer_type: str = "standard"  # standard, comparison, recommendation
+    follow_up_questions: list[str] = []
 
 
 class ProductResponse(BaseModel):

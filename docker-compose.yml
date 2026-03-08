@@ -38,7 +38,7 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: https://emacs-tribute-where-instrument.trycloudflare.com
+        NEXT_PUBLIC_API_URL: http://localhost:8000
     container_name: knowledge_frontend
     restart: unless-stopped
     ports:

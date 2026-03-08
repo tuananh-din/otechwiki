@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import AppLayout from "@/components/AppLayout";
 import { api } from "@/lib/api";
-import { Upload, Globe, Search as SearchIcon, Loader2, CheckCircle2, Radar } from "lucide-react";
+import { Upload, Globe, Search as SearchIcon, Loader2, CheckCircle2, Radar, RefreshCw } from "lucide-react";
 
 export default function DataSourcesPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -19,10 +19,17 @@ export default function DataSourcesPage() {
   const [discoverUrl, setDiscoverUrl] = useState("");
   const [discoveredItems, setDiscoveredItems] = useState<any[]>([]);
   const [scanning, setScanning] = useState(false);
-  const [bulkIngesting, setBulkIngesting] = useState(false);
   const [scanDepth, setScanDepth] = useState(2);
 
+  // Background import state
+  const [importJobId, setImportJobId] = useState<string | null>(null);
+  const [importProgress, setImportProgress] = useState<any>(null);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => { api.getProducts().then(setProducts).catch(() => {}); }, []);
+
+  // Cleanup polling on unmount
+  useEffect(() => { return () => { if (pollRef.current) clearInterval(pollRef.current); }; }, []);
 
   const docTypes = ["product_spec", "faq", "policy", "company_info", "troubleshooting", "warranty", "comparison", "manual"];
 
@@ -60,33 +67,63 @@ export default function DataSourcesPage() {
     setScanning(true); setDiscoveredItems([]); setMessage("");
     try {
       const form = new FormData();
-      form.append("homepage_url", discoverUrl); form.append("limit", "60"); form.append("depth", scanDepth.toString());
+      form.append("homepage_url", discoverUrl); form.append("limit", "200"); form.append("depth", scanDepth.toString());
       const res = await api.scanUrls(form);
       setDiscoveredItems(res.map((item: any) => ({ ...item, selected: !item.exists })));
       if (res.length === 0) setMessage("Không tìm thấy sub-pages nào.");
     } catch (err: any) { setMessage(`error:Lỗi quét URL: ${err.message}`); } finally { setScanning(false); }
   };
 
-  const handleBulkIngest = async () => {
-    const toIngest = discoveredItems.filter(item => item.selected).map(item => item.url);
-    if (toIngest.length === 0) return;
-    setBulkIngesting(true); setMessage("");
+  const pollImportJob = useCallback((jobId: string) => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const job = await api.getImportJob(jobId);
+        setImportProgress(job);
+        if (job.status === "done") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          const successCount = job.results.filter((r: any) => r.status === "success").length;
+          const errorCount = job.errors.length;
+          setMessage(`Import hoàn tất! ✅ ${successCount} thành công${errorCount > 0 ? `, ❌ ${errorCount} lỗi` : ""}.`);
+          setImportJobId(null);
+          setDiscoveredItems([]);
+          setDiscoverUrl("");
+        }
+      } catch { /* ignore polling errors */ }
+    }, 2000);
+  }, []);
+
+  const handleBulkImport = async () => {
+    const toImport = discoveredItems.filter(item => item.selected).map(item => item.url);
+    if (toImport.length === 0) return;
+    setMessage("");
     try {
-      const res = await api.bulkIngestWeb({
-        urls: toIngest, document_type: webDocType,
-        product_ids: selectedProducts ? selectedProducts.split(",").map(id => parseInt(id.trim())) : []
+      const res = await api.startImport({
+        urls: toImport,
+        document_type: webDocType,
+        product_ids: selectedProducts ? selectedProducts.split(",").map(id => parseInt(id.trim())) : [],
+        reimport: true,
       });
-      setMessage(`Đã xử lý xong! Thành công: ${res.success}/${res.processed}.`);
-      setDiscoveredItems([]); setDiscoverUrl("");
-    } catch (err: any) { setMessage(`error:Lỗi Bulk Ingest: ${err.message}`); } finally { setBulkIngesting(false); }
+      setImportJobId(res.job_id);
+      setImportProgress({ status: "running", total: res.total, completed: 0, current_url: "", results: [], errors: [] });
+      pollImportJob(res.job_id);
+    } catch (err: any) { setMessage(`error:Lỗi bắt đầu import: ${err.message}`); }
   };
 
   const toggleSelect = (url: string) => {
     setDiscoveredItems(prev => prev.map(item => item.url === url ? { ...item, selected: !item.selected } : item));
   };
 
+  const toggleSelectAll = () => {
+    const selectableItems = discoveredItems.filter(i => !i.exists);
+    const allSelected = selectableItems.every(i => i.selected);
+    setDiscoveredItems(prev => prev.map(item => item.exists ? item : { ...item, selected: !allSelected }));
+  };
+
   const isError = message.startsWith("error:");
   const displayMsg = isError ? message.slice(6) : message;
+  const selectedCount = discoveredItems.filter(i => i.selected).length;
+  const isImporting = !!importJobId;
 
   return (
     <AppLayout>
@@ -167,10 +204,10 @@ export default function DataSourcesPage() {
       <div className="card">
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
           <Radar size={18} style={{ color: "var(--color-primary)" }} />
-          <h3 style={{ fontSize: "1rem", fontWeight: 600, margin: 0 }}>Web Discovery & Bulk Ingest</h3>
+          <h3 style={{ fontSize: "1rem", fontWeight: 600, margin: 0 }}>Web Discovery & Bulk Import</h3>
         </div>
         <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: "1rem" }}>
-          Nhập trang chủ website để tự động tìm các trang con và chọn trang cần nạp vào dữ liệu.
+          Nhập trang chủ website để tự động tìm tối đa 200 trang con. URL đã có sẽ tự động xoá &amp; re-import.
         </p>
 
         <form onSubmit={handleScanUrls} className="search-form-row" style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem", alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -186,10 +223,38 @@ export default function DataSourcesPage() {
               <option value={3}>3 (Rất sâu)</option>
             </select>
           </div>
-          <button className="btn btn-primary" type="submit" disabled={scanning || bulkIngesting}>
+          <button className="btn btn-primary" type="submit" disabled={scanning || isImporting}>
             {scanning ? <><Loader2 size={16} className="spinner" /> Đang quét...</> : <><SearchIcon size={16} /> Quét Website</>}
           </button>
         </form>
+
+        {/* Import Progress Bar */}
+        {isImporting && importProgress && (
+          <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "var(--color-surface-hover)", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.875rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Loader2 size={16} className="spinner" /> Đang import...
+              </span>
+              <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-primary)" }}>
+                {importProgress.completed}/{importProgress.total}
+              </span>
+            </div>
+            <div style={{ width: "100%", height: "8px", background: "var(--color-border)", borderRadius: "4px", overflow: "hidden" }}>
+              <div style={{
+                width: `${(importProgress.completed / importProgress.total) * 100}%`,
+                height: "100%",
+                background: "var(--color-primary)",
+                borderRadius: "4px",
+                transition: "width 0.3s ease",
+              }} />
+            </div>
+            {importProgress.current_url && (
+              <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.5rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                → {importProgress.current_url}
+              </p>
+            )}
+          </div>
+        )}
 
         {discoveredItems.length > 0 && (
           <div style={{ border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", overflow: "hidden" }}>
@@ -202,7 +267,7 @@ export default function DataSourcesPage() {
                 }}>
                   <input
                     type="checkbox" checked={item.selected}
-                    disabled={item.exists || bulkIngesting}
+                    disabled={isImporting}
                     onChange={() => toggleSelect(item.url)}
                     style={{ cursor: "pointer" }}
                   />
@@ -210,7 +275,9 @@ export default function DataSourcesPage() {
                     {item.url}
                   </span>
                   {item.exists ? (
-                    <span className="badge" style={{ background: "#D1FAE5", color: "#065F46" }}>Đã có</span>
+                    <span className="badge" style={{ background: "#FEF3C7", color: "#92400E", fontSize: "0.7rem" }}>
+                      <RefreshCw size={10} style={{ marginRight: "2px" }} /> Re-import
+                    </span>
                   ) : (
                     <span className="badge badge-primary">Mới</span>
                   )}
@@ -221,15 +288,21 @@ export default function DataSourcesPage() {
               padding: "0.75rem 1rem", background: "var(--color-surface-hover)",
               display: "flex", justifyContent: "space-between", alignItems: "center",
             }}>
-              <span style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
-                Đã chọn {discoveredItems.filter(i => i.selected).length} trang
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                <label style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                  <input type="checkbox" onChange={toggleSelectAll} checked={discoveredItems.filter(i => !i.exists).every(i => i.selected) && discoveredItems.filter(i => !i.exists).length > 0} disabled={isImporting} />
+                  Chọn tất cả
+                </label>
+                <span style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
+                  Đã chọn {selectedCount} trang
+                </span>
+              </div>
               <button
                 className="btn btn-primary btn-sm"
-                onClick={handleBulkIngest}
-                disabled={bulkIngesting || discoveredItems.filter(i => i.selected).length === 0}
+                onClick={handleBulkImport}
+                disabled={isImporting || selectedCount === 0}
               >
-                {bulkIngesting ? <><Loader2 size={14} className="spinner" /> Đang Ingest...</> : "Bắt đầu Bulk Ingest"}
+                {isImporting ? <><Loader2 size={14} className="spinner" /> Đang Import...</> : `Import ${selectedCount} trang`}
               </button>
             </div>
           </div>

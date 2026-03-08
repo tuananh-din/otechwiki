@@ -1,13 +1,14 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { api } from "@/lib/api";
 import Link from "next/link";
-import { Search, Sparkles, Copy, Check, FileText, Loader2 } from "lucide-react";
+import { Search, Sparkles, Copy, Check, FileText, Loader2, MessageCircleQuestion, BarChart3, Lightbulb } from "lucide-react";
 
 function SearchContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const q = searchParams.get("q") || "";
   const [query, setQuery] = useState(q);
   const [aiAnswer, setAiAnswer] = useState<any>(null);
@@ -48,12 +49,25 @@ function SearchContent() {
     doAsk(query.trim());
   };
 
+  const handleFollowUp = (question: string) => {
+    setQuery(question);
+    setAiAnswer(null);
+    setResults([]);
+    router.push(`/search?q=${encodeURIComponent(question)}`);
+  };
+
   const copyAnswer = () => {
     if (aiAnswer?.answer) {
       navigator.clipboard.writeText(aiAnswer.answer);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const answerTypeLabel = (type: string) => {
+    if (type === "comparison") return { icon: <BarChart3 size={16} />, label: "So sánh sản phẩm" };
+    if (type === "recommendation") return { icon: <Lightbulb size={16} />, label: "Tư vấn chọn model" };
+    return { icon: <Sparkles size={18} />, label: "Trả lời AI" };
   };
 
   return (
@@ -91,29 +105,58 @@ function SearchContent() {
         )}
 
         {aiAnswer && !askLoading && (
-          <div className="ai-answer-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Sparkles size={18} style={{ color: "var(--color-primary)" }} />
-                <h3 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: 600 }}>Trả lời AI</h3>
+          <>
+            <div className="ai-answer-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  {answerTypeLabel(aiAnswer.answer_type).icon}
+                  <h3 style={{ margin: 0, fontSize: "0.9375rem", fontWeight: 600 }}>
+                    {answerTypeLabel(aiAnswer.answer_type).label}
+                  </h3>
+                  {aiAnswer.answer_type !== "standard" && (
+                    <span className="answer-type-badge">{aiAnswer.answer_type === "comparison" ? "So sánh" : "Tư vấn"}</span>
+                  )}
+                </div>
+                <button className={`copy-btn ${copied ? "copied" : ""}`} onClick={copyAnswer}>
+                  {copied ? <><Check size={14} /><span>Đã copy</span></> : <><Copy size={14} /><span>Copy</span></>}
+                </button>
               </div>
-              <button className={`copy-btn ${copied ? "copied" : ""}`} onClick={copyAnswer}>
-                {copied ? <><Check size={14} /><span>Đã copy</span></> : <><Copy size={14} /><span>Copy</span></>}
-              </button>
-            </div>
-            <div className="answer-text">{aiAnswer.answer}</div>
+              <div className="answer-text" style={{ whiteSpace: "pre-wrap" }}>{aiAnswer.answer}</div>
 
-            {aiAnswer.citations?.length > 0 && (
-              <div style={{ marginTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                {aiAnswer.citations.map((c: any, i: number) => (
-                  <Link key={i} href={`/documents/${c.document_id}`} className="citation-badge">
-                    <FileText size={12} />
-                    {c.document_title}{c.page_number ? `, tr.${c.page_number}` : ""}
-                  </Link>
-                ))}
+              {aiAnswer.citations?.length > 0 && (
+                <div style={{ marginTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                  {aiAnswer.citations.map((c: any, i: number) => (
+                    <Link key={i} href={`/documents/${c.document_id}`} className="citation-badge">
+                      <FileText size={12} />
+                      {c.document_title}{c.page_number ? `, tr.${c.page_number}` : ""}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Follow-up questions */}
+            {aiAnswer.follow_up_questions?.length > 0 && (
+              <div className="follow-up-section">
+                <div className="follow-up-header">
+                  <MessageCircleQuestion size={16} />
+                  <span>Bạn có thể hỏi thêm</span>
+                </div>
+                <div className="follow-up-list">
+                  {aiAnswer.follow_up_questions.map((question: string, i: number) => (
+                    <button
+                      key={i}
+                      className="follow-up-chip"
+                      onClick={() => handleFollowUp(question)}
+                    >
+                      {question}
+                      <span className="follow-up-arrow">→</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
+          </>
         )}
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
