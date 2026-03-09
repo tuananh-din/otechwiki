@@ -259,6 +259,11 @@ async def ingest_web(db: AsyncSession, document_id: int, url: str) -> int:
         doc_record.cleaning_status = "cleaned"
         doc_record.import_status = "cleaned"
 
+        # 4b. Score completeness
+        from app.services.completeness import score_completeness
+        comp = score_completeness(cleaned_text, page_type)
+        doc_record.completeness_score = comp["score"]
+
         # 5. Dedup blocks within page
         deduped_text = dedup_blocks(cleaned_text)
 
