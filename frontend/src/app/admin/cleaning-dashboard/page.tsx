@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AppLayout from "@/components/AppLayout";
 import { api } from "@/lib/api";
-import { Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3 } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle2, AlertCircle, BarChart3, FileText, Layers, Search as SearchIcon } from "lucide-react";
 
 interface CleaningStats {
   total_documents: number;
@@ -17,6 +18,22 @@ interface CleaningStats {
     percentage: number;
   };
 }
+
+const statusColors: Record<string, { bg: string; color: string }> = {
+  cleaned: { bg: "#D1FAE5", color: "#065F46" },
+  legacy: { bg: "#FEF3C7", color: "#92400E" },
+  error: { bg: "#FEE2E2", color: "#991B1B" },
+  pending: { bg: "#F1F5F9", color: "#475569" },
+  unknown: { bg: "#F1F5F9", color: "#475569" },
+};
+
+const pageTypeLabels: Record<string, string> = {
+  product_detail: "Trang sản phẩm",
+  collection: "Bộ sưu tập",
+  homepage: "Trang chủ",
+  other: "Khác",
+  unknown: "Chưa phân loại",
+};
 
 export default function CleaningDashboardPage() {
   const [stats, setStats] = useState<CleaningStats | null>(null);
@@ -51,130 +68,146 @@ export default function CleaningDashboardPage() {
     setReprocessing(false);
   };
 
-  const statusColors: Record<string, string> = {
-    cleaned: "bg-green-100 text-green-800",
-    legacy: "bg-yellow-100 text-yellow-800",
-    error: "bg-red-100 text-red-800",
-    pending: "bg-gray-100 text-gray-600",
-  };
-
-  const pageTypeIcons: Record<string, string> = {
-    product_detail: "🛍️",
-    collection: "📁",
-    homepage: "🏠",
-    other: "📄",
-  };
+  if (loading && !stats) {
+    return <AppLayout><div className="spinner" style={{ margin: "3rem auto" }} /></AppLayout>;
+  }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+    <AppLayout>
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <BarChart3 size={28} className="text-blue-600" />
+          <h1 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <BarChart3 size={26} style={{ color: "var(--color-primary)" }} />
             Cleaning Dashboard
           </h1>
-          <p className="text-gray-500 mt-1">Pipeline V2 — Rule-based cleaning + Heading-aware chunking</p>
+          <p>Pipeline V2 — Rule-based cleaning + Heading-aware chunking</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={loadStats} disabled={loading} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            Refresh
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <button className="btn btn-ghost" onClick={loadStats} disabled={loading}>
+            <RefreshCw size={16} className={loading ? "spinner" : ""} />
+            <span>Refresh</span>
           </button>
-          <button onClick={handleReprocessAll} disabled={reprocessing} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
-            {reprocessing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            {reprocessing ? "Đang xử lý..." : "Reprocess All"}
+          <button className="btn btn-primary" onClick={handleReprocessAll} disabled={reprocessing}>
+            {reprocessing ? <Loader2 size={16} className="spinner" /> : <RefreshCw size={16} />}
+            <span>{reprocessing ? "Đang xử lý..." : "Reprocess All"}</span>
           </button>
         </div>
       </div>
 
       {result && (
-        <div className={`p-4 rounded-xl border ${result.error ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"}`}>
+        <div className="card" style={{
+          marginBottom: "1.5rem",
+          background: result.error ? "#FEF2F2" : "#F0FDF4",
+          borderColor: result.error ? "#FECACA" : "#BBF7D0",
+        }}>
           {result.error ? (
-            <p className="text-red-700 flex items-center gap-2"><AlertCircle size={18} /> {result.error}</p>
+            <p style={{ color: "#991B1B", display: "flex", alignItems: "center", gap: "0.5rem", margin: 0 }}>
+              <AlertCircle size={18} /> {result.error}
+            </p>
           ) : (
-            <div className="text-green-700 flex items-center gap-2">
+            <p style={{ color: "#065F46", display: "flex", alignItems: "center", gap: "0.5rem", margin: 0 }}>
               <CheckCircle2 size={18} />
-              <span>Đã xử lý {result.processed}/{result.total} documents ({result.errors} lỗi). {result.aliases_created} aliases tạo.</span>
-            </div>
+              Đã xử lý {result.processed}/{result.total} documents ({result.errors} lỗi). {result.aliases_created} aliases tạo.
+            </p>
           )}
         </div>
       )}
 
-      {loading && !stats ? (
-        <div className="flex justify-center py-12"><Loader2 size={32} className="animate-spin text-blue-500" /></div>
-      ) : stats && (
+      {stats && (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-              <p className="text-sm text-gray-500">Documents</p>
-              <p className="text-3xl font-bold text-gray-800">{stats.total_documents}</p>
+          <div className="grid-3" style={{ marginBottom: "1.5rem", gridTemplateColumns: "repeat(4, 1fr)" }}>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}>
+                <FileText size={22} />
+              </div>
+              <div className="stat-value">{stats.total_documents}</div>
+              <div className="stat-label">Documents</div>
             </div>
-            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-              <p className="text-sm text-gray-500">Total Chunks</p>
-              <p className="text-3xl font-bold text-gray-800">{stats.total_chunks}</p>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: "#FEF3C7", color: "#92400E" }}>
+                <Layers size={22} />
+              </div>
+              <div className="stat-value">{stats.total_chunks}</div>
+              <div className="stat-label">Total Chunks</div>
             </div>
-            <div className="bg-white rounded-xl p-5 border border-green-200 shadow-sm">
-              <p className="text-sm text-green-600">Searchable</p>
-              <p className="text-3xl font-bold text-green-700">{stats.searchable_chunks}</p>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: "#D1FAE5", color: "#065F46" }}>
+                <SearchIcon size={22} />
+              </div>
+              <div className="stat-value">{stats.searchable_chunks}</div>
+              <div className="stat-label">Searchable</div>
             </div>
-            <div className="bg-white rounded-xl p-5 border border-red-200 shadow-sm">
-              <p className="text-sm text-red-500">Non-Searchable</p>
-              <p className="text-3xl font-bold text-red-600">{stats.non_searchable_chunks}</p>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ background: "#FEE2E2", color: "#991B1B" }}>
+                <AlertCircle size={22} />
+              </div>
+              <div className="stat-value">{stats.non_searchable_chunks}</div>
+              <div className="stat-label">Non-Searchable</div>
             </div>
           </div>
 
-          {/* Cleaning Status + Page Types */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Detail Cards */}
+          <div className="grid-3">
             {/* Cleaning Status */}
-            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-              <h3 className="font-semibold text-gray-700 mb-3">Cleaning Status</h3>
-              <div className="space-y-2">
-                {Object.entries(stats.cleaning_breakdown).map(([status, count]) => (
-                  <div key={status} className="flex items-center justify-between">
-                    <span className={`px-2 py-1 rounded-md text-xs font-medium ${statusColors[status] || "bg-gray-100 text-gray-600"}`}>
-                      {status}
-                    </span>
-                    <span className="font-mono text-gray-800">{count}</span>
-                  </div>
-                ))}
+            <div className="card">
+              <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "1rem" }}>Cleaning Status</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {Object.entries(stats.cleaning_breakdown).map(([status, count]) => {
+                  const colors = statusColors[status] || statusColors.unknown;
+                  return (
+                    <div key={status} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span className="badge" style={{ background: colors.bg, color: colors.color }}>
+                        {status}
+                      </span>
+                      <span style={{ fontWeight: 600, fontFamily: "'Poppins', sans-serif" }}>{count}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
             {/* Page Types */}
-            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-              <h3 className="font-semibold text-gray-700 mb-3">Page Types</h3>
-              <div className="space-y-2">
+            <div className="card">
+              <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "1rem" }}>Page Types</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 {Object.entries(stats.page_type_breakdown).map(([type, count]) => (
-                  <div key={type} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">
-                      {pageTypeIcons[type] || "📄"} {type}
+                  <div key={type} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
+                      {pageTypeLabels[type] || type}
                     </span>
-                    <span className="font-mono text-gray-800">{count}</span>
+                    <span style={{ fontWeight: 600, fontFamily: "'Poppins', sans-serif" }}>{count}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Mapping Coverage */}
-            <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-              <h3 className="font-semibold text-gray-700 mb-3">Mapping Coverage</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-green-600">Mapped</span>
-                  <span className="font-mono text-green-700">{stats.mapping_coverage.mapped}</span>
+            <div className="card">
+              <h3 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "1rem" }}>Mapping Coverage</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "0.875rem", color: "var(--color-success)" }}>Mapped</span>
+                  <span style={{ fontWeight: 600, color: "var(--color-success)" }}>{stats.mapping_coverage.mapped}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-red-500">Unmapped</span>
-                  <span className="font-mono text-red-600">{stats.mapping_coverage.unmapped}</span>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "0.875rem", color: "var(--color-error)" }}>Unmapped</span>
+                  <span style={{ fontWeight: 600, color: "var(--color-error)" }}>{stats.mapping_coverage.unmapped}</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-green-500 h-3 rounded-full transition-all"
-                    style={{ width: `${stats.mapping_coverage.percentage}%` }}
-                  />
+                <div style={{
+                  width: "100%", height: 10, borderRadius: 5,
+                  background: "var(--color-border)", overflow: "hidden",
+                }}>
+                  <div style={{
+                    width: `${stats.mapping_coverage.percentage}%`, height: "100%",
+                    borderRadius: 5, background: "var(--color-success)",
+                    transition: "width 0.5s ease",
+                  }} />
                 </div>
-                <p className="text-center text-sm font-semibold text-gray-700">
+                <p style={{
+                  textAlign: "center", fontSize: "0.875rem", fontWeight: 600,
+                  color: "var(--color-text)", margin: 0,
+                }}>
                   {stats.mapping_coverage.percentage}% coverage
                 </p>
               </div>
@@ -182,6 +215,6 @@ export default function CleaningDashboardPage() {
           </div>
         </>
       )}
-    </div>
+    </AppLayout>
   );
 }
