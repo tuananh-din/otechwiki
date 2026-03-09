@@ -53,6 +53,7 @@ https://github.com/tuananh-din/otechwiki.git
 | services/import_jobs.py | Background async import with progress tracking |
 | services/autocomplete.py | Search autocomplete suggestions |
 | services/seed_autocomplete.py | Seed autocomplete from existing data |
+| services/url_utils.py | URL normalization, tracking param stripping, blacklist |
 
 ### Backend — Scripts gốc (backend/)
 
@@ -62,6 +63,7 @@ https://github.com/tuananh-din/otechwiki.git
 | extract_products.py | GPT-4o-mini structured extraction (price, specs, features) |
 | deep_crawl.py | Deep crawl toàn bộ subpages (depth 5, max 500 URLs) |
 | migrate_sprint1.py | Migration: enable pg_trgm + trigram indexes |
+| migrate_sprint2.py | Migration: incremental pipeline columns + indexes |
 | reset_admin.py | Admin password reset |
 | init.sql | SQL khởi tạo database schema |
 
@@ -189,6 +191,17 @@ https://github.com/tuananh-din/otechwiki.git
 - ✅ *GPT Extraction:* Extract structured data cho **107/107 product detail pages**
 - ✅ *Verified:* "robrock f25 gia" → "Giá bán Roborock F25 là 6.990.000₫" ✓
 
+### Phase 10: Incremental Pipeline Foundation (2026-03-09)
+
+*Mục tiêu:* Skip unchanged documents on re-import, save embedding costs.
+
+- ✅ *Schema:* 10 new columns: canonical_url, raw_hash, clean_hash, etag, last_modified_header, completeness_score, freshness_score, last_fetched_at, import_status
+- ✅ *URL Utils:* url_utils.py — normalize URLs (strip tracking params, fragments, trailing slash), blacklist paths (/cart, /checkout, /login)
+- ✅ *Change Detection:* 2-level hash in ingest.py: raw_hash (skip if HTML identical) → clean_hash (skip if content same despite template change)
+- ✅ *Discovery Upgrade:* depth 2→5, branching factor 20→100, integrated URL blacklist
+- ✅ *Migration:* Columns added, indexes created, canonical_url backfilled for 495 existing docs
+- ✅ *Deployed:* git push → git pull → docker compose build
+
 ---
 
 ## 🐛 Các bug đã fix (quan trọng)
@@ -281,8 +294,8 @@ WEB_EXTRACTOR_URL=
 
 ⚠️ Đây là gợi ý, chưa implement.
 
-- [ ] Incremental pipeline (hash-based change detection, skip unchanged docs)
-- [ ] URL normalization + canonical URLs
+- [x] Incremental pipeline (hash-based change detection, skip unchanged docs)
+- [x] URL normalization + canonical URLs
 - [ ] Completeness scoring per document
 - [ ] Product autocomplete integration hoàn chỉnh
 - [ ] Product mapping UI hoàn thiện
@@ -307,6 +320,7 @@ WEB_EXTRACTOR_URL=
 | backend/deep_crawl.py | Deep crawl toàn bộ subpages từ root URL |
 | backend/extract_products.py | GPT structured extraction cho product pages |
 | backend/migrate_sprint1.py | Migration: pg_trgm extension + indexes |
+| backend/migrate_sprint2.py | Migration: incremental pipeline columns |
 
 ---
 
