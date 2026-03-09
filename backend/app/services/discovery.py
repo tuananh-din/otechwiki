@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 import re
 import asyncio
 from typing import Optional
+from app.services.url_utils import normalize_url, is_blacklisted_url
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
@@ -50,8 +51,8 @@ async def parse_sitemap(client: httpx.AsyncClient, sitemap_url: str, domain: str
 
 async def discover_urls_recursive(
     homepage_url: str, 
-    max_depth: int = 2, 
-    limit: int = 200,
+    max_depth: int = 5, 
+    limit: int = 500,
     current_depth: int = 0,
     visited: Optional[set[str]] = None,
     found_urls: Optional[set[str]] = None
@@ -95,10 +96,9 @@ async def discover_urls_recursive(
                     
                     if (parsed_url.netloc == domain and 
                         parsed_url.scheme in ["http", "https"] and 
-                        not is_blacklisted_file):
+                        not is_blacklisted_url(full_url)):
                         
-                        # Clean fragments and trailing slash
-                        clean_url = full_url.split("#")[0].rstrip("/")
+                        clean_url = normalize_url(full_url)
                         
                         if clean_url != clean_homepage and clean_url not in visited:
                             # Prioritize product-like URLs
@@ -116,7 +116,7 @@ async def discover_urls_recursive(
 
                 # If we haven't reached depth limit, recurse
                 if current_depth < max_depth:
-                    for link in new_links[:20]: # Branching factor limit
+                    for link in new_links[:100]: # Increased branching factor
                         if len(found_urls) >= limit:
                             break
                         await discover_urls_recursive(link, max_depth, limit, current_depth + 1, visited, found_urls)
@@ -126,7 +126,7 @@ async def discover_urls_recursive(
 
     return found_urls
 
-async def discover_urls(homepage_url: str, limit: int = 200, depth: int = 2) -> list[str]:
+async def discover_urls(homepage_url: str, limit: int = 500, depth: int = 5) -> list[str]:
     """
     Find sub-pages starting from a homepage URL.
     Tries Sitemap first (Recursive), then falls back to Recursive BFS.

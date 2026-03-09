@@ -1,5 +1,6 @@
 import base64
 import fitz  # PyMuPDF
+import hashlib
 import httpx
 import io
 import pptx
@@ -11,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.document import Document, Chunk
 from app.services.embeddings import get_embeddings_batch
+from app.services.url_utils import normalize_url
 from app.core.config import get_settings
+from datetime import datetime, timezone
 
 settings = get_settings()
 tokenizer = tiktoken.encoding_for_model("gpt-4o-mini")
@@ -195,6 +198,23 @@ async def ingest_web(db: AsyncSession, document_id: int, url: str) -> int:
             resp.raise_for_status()
             raw_html = resp.text
 
+        # 1b. Hash-based change detection
+        new_raw_hash = hashlib.sha256(raw_html.encode()).hexdigest()
+        doc_record.last_fetched_at = datetime.now(timezone.utc)
+        doc_record.canonical_url = normalize_url(url)
+
+        # Save HTTP caching headers
+        doc_record.etag = resp.headers.get("ETag", "")
+        doc_record.last_modified_header = resp.headers.get("Last-Modified", "")
+
+        if doc_record.raw_hash == new_raw_hash:
+            doc_record.import_status = "unchanged"
+            doc_record.freshness_score = 100
+            await db.commit()
+            return 0  # Skip — content identical
+
+        doc_record.raw_hash = new_raw_hash
+
         # 2. Detect page type and domain
         page_type = detect_page_type(url, raw_html)
         domain = extract_domain(url)
@@ -223,10 +243,21 @@ async def ingest_web(db: AsyncSession, document_id: int, url: str) -> int:
             await db.commit()
             return 0
 
-        # 4. Save raw + cleaned text
+        # 4. Save raw + cleaned text + clean hash
+        new_clean_hash = hashlib.sha256(cleaned_text.encode()).hexdigest()
+
+        if doc_record.clean_hash == new_clean_hash:
+            # Raw HTML changed (template/UI update) but actual content identical
+            doc_record.import_status = "unchanged"
+            doc_record.freshness_score = 100
+            await db.commit()
+            return 0  # Skip re-chunking
+
+        doc_record.clean_hash = new_clean_hash
         doc_record.raw_text = raw_text
         doc_record.cleaned_text = cleaned_text
         doc_record.cleaning_status = "cleaned"
+        doc_record.import_status = "cleaned"
 
         # 5. Dedup blocks within page
         deduped_text = dedup_blocks(cleaned_text)
@@ -283,6 +314,8 @@ async def ingest_web(db: AsyncSession, document_id: int, url: str) -> int:
             pass  # Mapping errors should not block ingestion
 
         doc_record.status = "ready"
+        doc_record.import_status = "indexed"
+        doc_record.freshness_score = 100
         await db.commit()
         return len(all_chunks)
 

@@ -54,6 +54,17 @@ class Document(Base):
     page_type = Column(String(50))  # product_detail, collection, homepage, other
     domain = Column(String(200))
     cleaning_status = Column(String(20), default="pending")  # pending, cleaned, legacy, error
+    # V2 incremental pipeline fields
+    canonical_url = Column(String(1000), index=True)
+    raw_hash = Column(String(64))                   # SHA-256 of raw HTML
+    clean_hash = Column(String(64))                  # SHA-256 of cleaned text
+    etag = Column(String(200))                       # HTTP ETag for conditional fetch
+    last_modified_header = Column(String(200))        # HTTP Last-Modified
+    completeness_score = Column(Integer, default=0)   # 0-100
+    freshness_score = Column(Integer, default=100)    # 0-100, decays over time
+    last_fetched_at = Column(DateTime(timezone=True))
+    import_status = Column(String(20), default="discovered")
+    # Statuses: discovered, fetched, cleaned, chunked, indexed, unchanged, failed, stale
 
     products = relationship("Product", secondary="document_products", back_populates="documents")
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
