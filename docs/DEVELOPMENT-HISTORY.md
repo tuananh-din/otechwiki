@@ -66,6 +66,8 @@ https://github.com/tuananh-din/otechwiki.git
 | migrate_sprint1.py | Migration: enable pg_trgm + trigram indexes |
 | migrate_sprint2.py | Migration: incremental pipeline columns + indexes |
 | incremental_import.py | Incremental import orchestrator (discover → compare → upsert) |
+| smart_recrawl.py | Smart recrawl policy (freshness decay + auto-recrawl stale) |
+| analytics_report.py | Import analytics + coverage report |
 | reset_admin.py | Admin password reset |
 | init.sql | SQL khởi tạo database schema |
 
@@ -213,6 +215,16 @@ https://github.com/tuananh-din/otechwiki.git
 - ✅ *Incremental Import:* incremental_import.py orchestrator — discover URLs, compare by canonical_url, import only new/changed, auto-map to products
 - ✅ *Deployed:* git push → git pull → docker compose build
 
+### Phase 12: Cross-page Dedup, Smart Recrawl & Analytics (2026-03-09)
+
+*Mục tiêu:* Hoàn thiện các tính năng còn lại từ plan.
+
+- ✅ *Cross-page Dedup:* Thêm `cross_page_dedup()` vào dedup.py — phát hiện shared text (warranty, shipping) xuất hiện ≥3 docs, mark duplicates non-searchable
+- ✅ *Smart Recrawl:* smart_recrawl.py — freshness decay (-5/ngày), tự động tìm stale pages và re-import
+- ✅ *Analytics Report:* analytics_report.py — coverage dashboard (documents, page types, chunks, freshness, quality issues)
+- ✅ *Integrated:* Cross-page dedup chạy tự động cuối mỗi incremental import
+- ✅ *Deployed & Verified:* Analytics report chạy thành công trên server
+
 ---
 
 ## 🐛 Các bug đã fix (quan trọng)
@@ -308,7 +320,10 @@ WEB_EXTRACTOR_URL=
 - [x] Incremental pipeline (hash-based change detection, skip unchanged docs)
 - [x] URL normalization + canonical URLs
 - [x] Completeness scoring per document
-- [ ] Cross-page dedup (shared warranty text)
+- [x] Cross-page dedup (shared warranty text)
+- [x] Smart recrawl policy (auto-recrawl stale pages)
+- [x] Analytics import reports
+- [ ] Semantic fingerprinting (embedding-based near-duplicate)
 - [ ] Product autocomplete integration hoàn chỉnh
 - [ ] Product mapping UI hoàn thiện
 - [ ] Analytics dashboard data thực
