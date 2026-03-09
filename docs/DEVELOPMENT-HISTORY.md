@@ -54,6 +54,7 @@ https://github.com/tuananh-din/otechwiki.git
 | services/autocomplete.py | Search autocomplete suggestions |
 | services/seed_autocomplete.py | Seed autocomplete from existing data |
 | services/url_utils.py | URL normalization, tracking param stripping, blacklist |
+| services/completeness.py | Completeness scoring per page type (0-100) |
 
 ### Backend — Scripts gốc (backend/)
 
@@ -64,6 +65,7 @@ https://github.com/tuananh-din/otechwiki.git
 | deep_crawl.py | Deep crawl toàn bộ subpages (depth 5, max 500 URLs) |
 | migrate_sprint1.py | Migration: enable pg_trgm + trigram indexes |
 | migrate_sprint2.py | Migration: incremental pipeline columns + indexes |
+| incremental_import.py | Incremental import orchestrator (discover → compare → upsert) |
 | reset_admin.py | Admin password reset |
 | init.sql | SQL khởi tạo database schema |
 
@@ -202,6 +204,15 @@ https://github.com/tuananh-din/otechwiki.git
 - ✅ *Migration:* Columns added, indexes created, canonical_url backfilled for 495 existing docs
 - ✅ *Deployed:* git push → git pull → docker compose build
 
+### Phase 11: Quality & Completeness Scoring (2026-03-09)
+
+*Mục tiêu:* Score document quality, orchestrate incremental imports.
+
+- ✅ *Completeness Scorer:* completeness.py — scores 0-100 per page type (product: price/specs/features/warranty/FAQ checks)
+- ✅ *Pipeline Integration:* completeness_score computed during ingest and stored in documents table
+- ✅ *Incremental Import:* incremental_import.py orchestrator — discover URLs, compare by canonical_url, import only new/changed, auto-map to products
+- ✅ *Deployed:* git push → git pull → docker compose build
+
 ---
 
 ## 🐛 Các bug đã fix (quan trọng)
@@ -296,7 +307,8 @@ WEB_EXTRACTOR_URL=
 
 - [x] Incremental pipeline (hash-based change detection, skip unchanged docs)
 - [x] URL normalization + canonical URLs
-- [ ] Completeness scoring per document
+- [x] Completeness scoring per document
+- [ ] Cross-page dedup (shared warranty text)
 - [ ] Product autocomplete integration hoàn chỉnh
 - [ ] Product mapping UI hoàn thiện
 - [ ] Analytics dashboard data thực
