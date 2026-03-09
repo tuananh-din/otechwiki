@@ -96,6 +96,66 @@ INTENT_GUIDANCE = {
 SYNTHESIS_INTENTS = {"comparison", "model_recommendation"}
 
 
+async def _get_product_metadata_context(db: AsyncSession, product_name: str) -> str:
+    """Fetch structured product metadata via fuzzy match for RAG context injection."""
+    try:
+        sql = text("""
+            SELECT DISTINCT p.name, p.description, p.metadata
+            FROM products p
+            LEFT JOIN product_aliases pa ON p.id = pa.product_id
+            WHERE LOWER(p.name) ILIKE '%' || LOWER(:q) || '%'
+               OR LOWER(COALESCE(pa.alias, '')) ILIKE '%' || LOWER(:q) || '%'
+               OR similarity(LOWER(p.name), LOWER(:q)) > 0.3
+               OR similarity(LOWER(COALESCE(pa.alias, '')), LOWER(:q)) > 0.3
+            ORDER BY GREATEST(
+                similarity(LOWER(p.name), LOWER(:q)),
+                similarity(LOWER(COALESCE(pa.alias, '')), LOWER(:q))
+            ) DESC
+            LIMIT 3
+        """)
+        result = await db.execute(sql, {"q": product_name})
+        rows = result.mappings().all()
+        if not rows:
+            return ""
+
+        parts = []
+        for row in rows:
+            meta = row["metadata"] or {}
+            name = row["name"]
+            desc = row["description"] or ""
+            price = meta.get("price", "N/A")
+            original_price = meta.get("original_price", "")
+            specs = meta.get("key_specs", {})
+            features = meta.get("key_features", [])
+            warranty = meta.get("warranty", "")
+            in_box = meta.get("in_box", [])
+
+            info = f"[DỮ LIỆU CÓ CẤU TRÚC - {name}]\n"
+            info += f"Tên: {name}\n"
+            if desc:
+                info += f"Mô tả: {desc}\n"
+            info += f"Giá bán: {price}\n"
+            if original_price:
+                info += f"Giá gốc: {original_price}\n"
+            if specs:
+                info += "Thông số:\n"
+                for k, v in specs.items():
+                    info += f"  - {k}: {v}\n"
+            if features:
+                info += "Tính năng nổi bật:\n"
+                for f in features[:5]:
+                    info += f"  - {f}\n"
+            if warranty:
+                info += f"Bảo hành: {warranty}\n"
+            if in_box:
+                info += f"Trong hộp: {', '.join(in_box[:5])}\n"
+            parts.append(info)
+
+        return "\n---\n".join(parts)
+    except Exception:
+        return ""
+
+
 async def ask_with_rag(
     db: AsyncSession,
     query: str,
@@ -107,15 +167,18 @@ async def ask_with_rag(
     from app.services.query_understanding import analyze_query
     analysis = await analyze_query(query)
 
+    # Use corrected query for search if available
+    search_query = analysis.corrected_query or query
+
     # 1. Retrieve relevant chunks
     is_synthesis = analysis.intent in SYNTHESIS_INTENTS
 
     if is_synthesis and len(analysis.detected_products) >= 2:
-        # Multi-product retrieval: search each product separately for better coverage
+        # Multi-product retrieval: search each product separately
         all_chunks = []
         seen_ids = set()
         for product in analysis.detected_products:
-            product_query = f"{product} {query}"
+            product_query = f"{product} {search_query}"
             chunks = await hybrid_search(
                 db, product_query, limit=settings.rag_context_chunks,
                 product_filter=product_filter, doc_type_filter=doc_type_filter,
@@ -124,15 +187,14 @@ async def ask_with_rag(
                 if c["id"] not in seen_ids:
                     all_chunks.append(c)
                     seen_ids.add(c["id"])
-        chunks = all_chunks[:settings.rag_context_chunks * 2]  # Allow more context for comparisons
+        chunks = all_chunks[:settings.rag_context_chunks * 2]
 
     elif analysis.intent == "price_lookup" and analysis.detected_product:
-        # Direct product page chunk injection: bypass search ranking for price queries
-        # Search ranking fails for prices because '14.990.000₫' doesn't match 'giá' semantically
+        # Fuzzy product lookup: find chunks via trigram similarity on aliases
         all_chunks = []
         seen_ids = set()
 
-        # 1. Direct lookup: get chunks from the product's own detail page
+        # 1. Fuzzy alias match (replaces exact match)
         product_chunks_sql = text("""
             SELECT c.id, COALESCE(c.cleaned_content, c.content) as content,
                    c.document_id, c.page_number, c.section_title,
@@ -142,13 +204,22 @@ async def ask_with_rag(
             JOIN documents d ON c.document_id = d.id
             JOIN document_products dp ON d.id = dp.document_id
             JOIN products p ON dp.product_id = p.id
-            JOIN product_aliases pa ON p.id = pa.product_id
+            LEFT JOIN product_aliases pa ON p.id = pa.product_id
             WHERE d.status = 'ready'
               AND d.page_type = 'product_detail'
               AND (c.is_searchable = true OR c.is_searchable IS NULL)
-              AND LOWER(pa.alias) = LOWER(:product_name)
-            ORDER BY dp.confidence DESC, c.chunk_index ASC
-            LIMIT 4
+              AND (
+                  LOWER(pa.alias) = LOWER(:product_name)
+                  OR LOWER(p.name) ILIKE '%' || LOWER(:product_name) || '%'
+                  OR similarity(LOWER(COALESCE(pa.alias, '')), LOWER(:product_name)) > 0.3
+                  OR similarity(LOWER(p.name), LOWER(:product_name)) > 0.3
+              )
+            ORDER BY GREATEST(
+                CASE WHEN LOWER(pa.alias) = LOWER(:product_name) THEN 1.0
+                     ELSE similarity(LOWER(COALESCE(pa.alias, '')), LOWER(:product_name)) END,
+                similarity(LOWER(p.name), LOWER(:product_name))
+            ) DESC, dp.confidence DESC, c.chunk_index ASC
+            LIMIT 6
         """)
         result = await db.execute(product_chunks_sql, {"product_name": analysis.detected_product})
         product_rows = result.mappings().all()
@@ -168,7 +239,7 @@ async def ask_with_rag(
 
         # 2. Top up with regular search results
         search_results = await hybrid_search(
-            db, query, limit=settings.rag_context_chunks,
+            db, search_query, limit=settings.rag_context_chunks,
             product_filter=product_filter, doc_type_filter=doc_type_filter,
         )
         for c in search_results:
@@ -184,9 +255,9 @@ async def ask_with_rag(
         all_chunks = []
         seen_ids = set()
 
-        # Primary search: original query
+        # Primary search: corrected query
         primary = await hybrid_search(
-            db, query, limit=settings.rag_context_chunks,
+            db, search_query, limit=settings.rag_context_chunks,
             product_filter=product_filter, doc_type_filter=doc_type_filter,
         )
         for c in primary:
@@ -219,7 +290,7 @@ async def ask_with_rag(
 
     else:
         chunks = await hybrid_search(
-            db, query, limit=settings.rag_context_chunks,
+            db, search_query, limit=settings.rag_context_chunks,
             product_filter=product_filter, doc_type_filter=doc_type_filter,
         )
 
@@ -242,6 +313,12 @@ async def ask_with_rag(
         context_parts.append(f"[Nguồn {i}: {source}{page}{section}]\n{chunk['content']}")
 
     context = "\n\n---\n\n".join(context_parts)
+
+    # 2b. Inject structured product metadata if product detected
+    if analysis.detected_product:
+        meta_ctx = await _get_product_metadata_context(db, analysis.detected_product)
+        if meta_ctx:
+            context = f"{meta_ctx}\n\n{'='*40}\n\n{context}"
 
     # 3. Select prompt based on intent
     if analysis.intent == "comparison":

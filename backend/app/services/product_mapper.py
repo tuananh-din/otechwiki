@@ -17,9 +17,15 @@ PRODUCT_PATTERNS = [
     r"S8\s*Maxv\s*Ultra", r"S8\s*Max\s*Ultra", r"S8\s*Pro\s*Ultra", r"S8",
     r"F25\s*Ultra", r"F25\s*Ace\s*Pro", r"F25\s*Ace", r"F25",
     r"H60\s*Ultra", r"H60\s*Hub\s*Pro", r"H60",
+    r"H5",  # May Hut Bui Lau Nha
     r"Flexi\s*Pro", r"Flexi\s*Lite", r"Flexi",
     r"Dyad\s*Pro\s*Combo", r"Dyad\s*Pro", r"Dyad\s*Air\s*Combo", r"Dyad\s*Air", r"Dyad",
     r"Q8\s*Max\+?", r"Q5\s*Pro\+?",
+    # Additional models found in data
+    r"Q10\s*Pf\s*Plus", r"Q10\s*Pf", r"Q10\s*Vf\s*Plus", r"Q10\s*Vf",
+    r"Q7\s*Tf\s*Plus", r"Q7\s*Tf",
+    r"Qr\s*798",
+    r"Q\s*Revo\s*Pro", r"Q\s*Revo\s*Master", r"Q\s*Revo",
 ]
 
 # Compile patterns
