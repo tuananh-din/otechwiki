@@ -124,7 +124,7 @@ async def ingest_pdf(db: AsyncSession, document_id: int, file_path: str) -> int:
         result = md.convert(file_path)
         markdown_text = result.text_content
         
-        # 2. Heuristic: If extraction is too light (< 200 chars/page), use Vision
+        # 2. Heuristic: If extraction is too light, use Vision
         pdf = fitz.open(file_path)
         num_pages = len(pdf)
         doc_record.page_count = num_pages
@@ -132,16 +132,35 @@ async def ingest_pdf(db: AsyncSession, document_id: int, file_path: str) -> int:
         # Calculate char density (avoid division by zero)
         density = len(markdown_text) / max(num_pages, 1)
         
-        if density < 150:  # Threshold for "image-heavy" or "complex layout"
-            print(f"Low density ({density}) detected. Switching to Vision-OCR for {document_id}")
+        # Check if any page has images that might contain text
+        has_image_pages = False
+        for page_num in range(min(num_pages, 3)):  # Check first 3 pages
+            page = pdf[page_num]
+            images = page.get_images()
+            page_text = page.get_text().strip()
+            if len(images) > 0 and len(page_text) < 200:
+                has_image_pages = True
+                break
+        
+        if density < 300 or has_image_pages:  # Raised threshold + image detection
+            print(f"Vision-OCR for doc {document_id} (density={density:.0f}, images={has_image_pages})")
             vision_parts = []
             for page_num in range(num_pages):
                 page = pdf[page_num]
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # Zoom for better OCR
-                img_bytes = pix.tobytes("png")
-                page_md = await extract_text_with_vision(img_bytes)
-                vision_parts.append(f"<!-- Page {page_num + 1} -->\n{page_md}")
-            markdown_text = "\n\n---\n\n".join(vision_parts)
+                page_text = page.get_text().strip()
+                page_images = page.get_images()
+                
+                # Use Vision for pages with images + low text, keep MarkItDown text for text-rich pages
+                if len(page_images) > 0 and len(page_text) < 300:
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                    img_bytes = pix.tobytes("png")
+                    page_md = await extract_text_with_vision(img_bytes)
+                    vision_parts.append(f"<!-- Page {page_num + 1} (Vision) -->\n{page_md}")
+                elif page_text:
+                    vision_parts.append(f"<!-- Page {page_num + 1} -->\n{page_text}")
+            
+            if vision_parts:
+                markdown_text = "\n\n---\n\n".join(vision_parts)
         
         pdf.close()
         

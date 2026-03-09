@@ -22,6 +22,7 @@ SYSTEM_PROMPT = """Bạn là trợ lý tra cứu kiến thức sản phẩm nộ
 4. Nếu CONTEXT không chứa đủ thông tin để trả lời → BẮT BUỘC phải nói: "Không tìm thấy thông tin phù hợp trong dữ liệu hiện có. Vui lòng kiểm tra lại từ khóa hoặc cập nhật thêm nguồn tài liệu."
 5. TUYỆT ĐỐI KHÔNG bịa thêm thông tin ngoài CONTEXT.
 6. Trả lời bằng tiếng Việt.
+7. PHÂN BIỆT CHÍNH XÁC giữa các biến thể sản phẩm. Ví dụ: "Roborock F25" và "Roborock F25 Ultra" là hai sản phẩm KHÁC NHAU. Khi người dùng hỏi về "F25", CHỈ trả lời thông tin của F25, KHÔNG lấy thông tin của F25 Ultra, F25 Pro hay biến thể khác.
 """
 
 # ── Comparison synthesis prompt ───────────────────────────────────────
@@ -100,18 +101,30 @@ async def _get_product_metadata_context(db: AsyncSession, product_name: str) -> 
     """Fetch structured product metadata via fuzzy match for RAG context injection."""
     try:
         sql = text("""
-            SELECT DISTINCT ON (p.id) p.name, p.description, p.metadata
+            SELECT DISTINCT ON (p.id) p.name, p.description, p.metadata,
+                CASE
+                    WHEN LOWER(p.name) = LOWER(:q) OR LOWER(COALESCE(pa.alias, '')) = LOWER(:q) THEN 1
+                    WHEN LOWER(p.name) ILIKE LOWER(:q) || ' %' OR LOWER(p.name) ILIKE '% ' || LOWER(:q)
+                         OR LOWER(COALESCE(pa.alias, '')) ILIKE LOWER(:q) || ' %' OR LOWER(COALESCE(pa.alias, '')) ILIKE '% ' || LOWER(:q) THEN 2
+                    ELSE 3
+                END as match_priority
             FROM products p
             LEFT JOIN product_aliases pa ON p.id = pa.product_id
             WHERE LOWER(p.name) ILIKE '%' || LOWER(:q) || '%'
                OR LOWER(COALESCE(pa.alias, '')) ILIKE '%' || LOWER(:q) || '%'
-            ORDER BY p.id
+            ORDER BY p.id, match_priority ASC
             LIMIT 3
         """)
         result = await db.execute(sql, {"q": product_name})
         rows = result.mappings().all()
+
+        # Sort by match_priority then by name length (shorter = more specific)
+        rows = sorted(rows, key=lambda r: (r.get("match_priority", 99), len(r["name"])))
         if not rows:
             return ""
+
+        # Only inject the BEST match — prevent confusing LLM with multiple variants
+        rows = rows[:1]
 
         parts = []
         for row in rows:
@@ -194,7 +207,11 @@ async def ask_with_rag(
             SELECT c.id, COALESCE(c.cleaned_content, c.content) as content,
                    c.document_id, c.page_number, c.section_title,
                    d.title as document_title, d.source_type,
-                   1.0 as rrf_score
+                   CASE
+                       WHEN LOWER(pa.alias) = LOWER(:product_name) OR LOWER(p.name) = LOWER(:product_name) THEN 1.0
+                       WHEN LOWER(p.name) ILIKE LOWER(:product_name) || ' %' OR LOWER(p.name) ILIKE '% ' || LOWER(:product_name) THEN 0.8
+                       ELSE 0.5
+                   END as rrf_score
             FROM chunks c
             JOIN documents d ON c.document_id = d.id
             JOIN document_products dp ON d.id = dp.document_id
@@ -208,7 +225,7 @@ async def ask_with_rag(
                   OR LOWER(p.name) ILIKE '%' || LOWER(:product_name) || '%'
                   OR LOWER(COALESCE(pa.alias, '')) ILIKE '%' || LOWER(:product_name) || '%'
               )
-            ORDER BY dp.confidence DESC, c.chunk_index ASC
+            ORDER BY rrf_score DESC, LENGTH(p.name) ASC, dp.confidence DESC, c.chunk_index ASC
             LIMIT 6
         """)
         result = await db.execute(product_chunks_sql, {"product_name": analysis.detected_product})
