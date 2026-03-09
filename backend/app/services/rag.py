@@ -100,17 +100,12 @@ async def _get_product_metadata_context(db: AsyncSession, product_name: str) -> 
     """Fetch structured product metadata via fuzzy match for RAG context injection."""
     try:
         sql = text("""
-            SELECT DISTINCT p.name, p.description, p.metadata
+            SELECT DISTINCT ON (p.id) p.name, p.description, p.metadata
             FROM products p
             LEFT JOIN product_aliases pa ON p.id = pa.product_id
             WHERE LOWER(p.name) ILIKE '%' || LOWER(:q) || '%'
                OR LOWER(COALESCE(pa.alias, '')) ILIKE '%' || LOWER(:q) || '%'
-               OR similarity(LOWER(p.name), LOWER(:q)) > 0.3
-               OR similarity(LOWER(COALESCE(pa.alias, '')), LOWER(:q)) > 0.3
-            ORDER BY GREATEST(
-                similarity(LOWER(p.name), LOWER(:q)),
-                similarity(LOWER(COALESCE(pa.alias, '')), LOWER(:q))
-            ) DESC
+            ORDER BY p.id
             LIMIT 3
         """)
         result = await db.execute(sql, {"q": product_name})
@@ -211,14 +206,9 @@ async def ask_with_rag(
               AND (
                   LOWER(pa.alias) = LOWER(:product_name)
                   OR LOWER(p.name) ILIKE '%' || LOWER(:product_name) || '%'
-                  OR similarity(LOWER(COALESCE(pa.alias, '')), LOWER(:product_name)) > 0.3
-                  OR similarity(LOWER(p.name), LOWER(:product_name)) > 0.3
+                  OR LOWER(COALESCE(pa.alias, '')) ILIKE '%' || LOWER(:product_name) || '%'
               )
-            ORDER BY GREATEST(
-                CASE WHEN LOWER(pa.alias) = LOWER(:product_name) THEN 1.0
-                     ELSE similarity(LOWER(COALESCE(pa.alias, '')), LOWER(:product_name)) END,
-                similarity(LOWER(p.name), LOWER(:product_name))
-            ) DESC, dp.confidence DESC, c.chunk_index ASC
+            ORDER BY dp.confidence DESC, c.chunk_index ASC
             LIMIT 6
         """)
         result = await db.execute(product_chunks_sql, {"product_name": analysis.detected_product})
