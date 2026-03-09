@@ -138,6 +138,17 @@ async def incremental_import(
         except Exception as e:
             print(f"  Mapping error: {e}")
 
+    # 5b. Cross-page dedup
+    print()
+    print("Phase 5: Cross-page dedup...")
+    try:
+        async with async_session() as db:
+            from app.services.dedup import cross_page_dedup
+            dedup_result = await cross_page_dedup(db)
+            print(f"  Found {dedup_result['duplicate_hashes']} shared text blocks, marked {dedup_result['chunks_marked']} duplicate chunks")
+    except Exception as e:
+        print(f"  Dedup error: {e}")
+
     # 6. Report
     print()
     print("=" * 50)
