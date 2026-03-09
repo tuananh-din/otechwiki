@@ -98,68 +98,78 @@ SYNTHESIS_INTENTS = {"comparison", "model_recommendation"}
 
 
 async def _get_product_metadata_context(db: AsyncSession, product_name: str) -> str:
-    """Fetch structured product metadata via fuzzy match for RAG context injection."""
+    """Fetch structured product metadata. 2-stage: exact match first, ILIKE fallback."""
     try:
-        sql = text("""
-            SELECT DISTINCT ON (p.id) p.name, p.description, p.metadata,
-                CASE
-                    WHEN LOWER(p.name) = LOWER(:q) OR LOWER(COALESCE(pa.alias, '')) = LOWER(:q) THEN 1
-                    WHEN LOWER(p.name) ILIKE LOWER(:q) || ' %' OR LOWER(p.name) ILIKE '% ' || LOWER(:q)
-                         OR LOWER(COALESCE(pa.alias, '')) ILIKE LOWER(:q) || ' %' OR LOWER(COALESCE(pa.alias, '')) ILIKE '% ' || LOWER(:q) THEN 2
-                    ELSE 3
-                END as match_priority
-            FROM products p
-            LEFT JOIN product_aliases pa ON p.id = pa.product_id
-            WHERE LOWER(p.name) ILIKE '%' || LOWER(:q) || '%'
-               OR LOWER(COALESCE(pa.alias, '')) ILIKE '%' || LOWER(:q) || '%'
-            ORDER BY p.id, match_priority ASC
-            LIMIT 3
-        """)
-        result = await db.execute(sql, {"q": product_name})
-        rows = result.mappings().all()
+        # Normalize: "F25" -> try both "F25" and "Roborock F25"
+        q_variants = [product_name]
+        if not product_name.lower().startswith("roborock"):
+            q_variants.append(f"Roborock {product_name}")
 
-        # Sort by match_priority then by name length (shorter = more specific)
-        rows = sorted(rows, key=lambda r: (r.get("match_priority", 99), len(r["name"])))
+        # Stage 1: EXACT match on product name or alias
+        rows = []
+        for q in q_variants:
+            result = await db.execute(text(
+                "SELECT DISTINCT p.id, p.name, p.description, p.metadata "
+                "FROM products p "
+                "LEFT JOIN product_aliases pa ON p.id = pa.product_id "
+                "WHERE LOWER(p.name) = LOWER(:q) "
+                "   OR LOWER(COALESCE(pa.alias, '')) = LOWER(:q) "
+                "LIMIT 1"
+            ), {"q": q})
+            rows = result.mappings().all()
+            if rows:
+                break
+
+        # Stage 2: Fallback to ILIKE only if no exact match
+        if not rows:
+            result = await db.execute(text(
+                "SELECT DISTINCT ON (p.id) p.id, p.name, p.description, p.metadata "
+                "FROM products p "
+                "LEFT JOIN product_aliases pa ON p.id = pa.product_id "
+                "WHERE LOWER(p.name) ILIKE '%' || LOWER(:q) || '%' "
+                "   OR LOWER(COALESCE(pa.alias, '')) ILIKE '%' || LOWER(:q) || '%' "
+                "ORDER BY p.id, LENGTH(p.name) ASC "
+                "LIMIT 1"
+            ), {"q": product_name})
+            rows = result.mappings().all()
+            # Filter: only keep if the match is reasonably specific
+            if rows and len(rows[0]["name"]) > len(product_name) + 15:
+                rows = []  # Too different (e.g. "F25" matching "Roborock F25 Ace Pro")
+
         if not rows:
             return ""
 
-        # Only inject the BEST match — prevent confusing LLM with multiple variants
-        rows = rows[:1]
+        row = rows[0]
+        meta = row["metadata"] or {}
+        name = row["name"]
+        desc = row["description"] or ""
+        price = meta.get("price", "N/A")
+        original_price = meta.get("original_price", "")
+        specs = meta.get("key_specs", {})
+        features = meta.get("key_features", [])
+        warranty = meta.get("warranty", "")
+        in_box = meta.get("in_box", [])
 
-        parts = []
-        for row in rows:
-            meta = row["metadata"] or {}
-            name = row["name"]
-            desc = row["description"] or ""
-            price = meta.get("price", "N/A")
-            original_price = meta.get("original_price", "")
-            specs = meta.get("key_specs", {})
-            features = meta.get("key_features", [])
-            warranty = meta.get("warranty", "")
-            in_box = meta.get("in_box", [])
-
-            info = f"[DỮ LIỆU CÓ CẤU TRÚC - {name}]\n"
-            info += f"Tên: {name}\n"
-            if desc:
-                info += f"Mô tả: {desc}\n"
-            info += f"Giá bán: {price}\n"
-            if original_price:
-                info += f"Giá gốc: {original_price}\n"
-            if specs:
-                info += "Thông số:\n"
-                for k, v in specs.items():
-                    info += f"  - {k}: {v}\n"
-            if features:
-                info += "Tính năng nổi bật:\n"
-                for f in features[:5]:
-                    info += f"  - {f}\n"
-            if warranty:
-                info += f"Bảo hành: {warranty}\n"
-            if in_box:
-                info += f"Trong hộp: {', '.join(in_box[:5])}\n"
-            parts.append(info)
-
-        return "\n---\n".join(parts)
+        info = f"[DỮ LIỆU CÓ CẤU TRÚC - {name}]\n"
+        info += f"Tên: {name}\n"
+        if desc:
+            info += f"Mô tả: {desc}\n"
+        info += f"Giá bán: {price}\n"
+        if original_price:
+            info += f"Giá gốc: {original_price}\n"
+        if specs:
+            info += "Thông số:\n"
+            for k, v in specs.items():
+                info += f"  - {k}: {v}\n"
+        if features:
+            info += "Tính năng nổi bật:\n"
+            for f in features[:5]:
+                info += f"  - {f}\n"
+        if warranty:
+            info += f"Bảo hành: {warranty}\n"
+        if in_box:
+            info += f"Trong hộp: {', '.join(in_box[:5])}\n"
+        return info
     except Exception:
         return ""
 
@@ -198,37 +208,60 @@ async def ask_with_rag(
         chunks = all_chunks[:settings.rag_context_chunks * 2]
 
     elif analysis.intent == "price_lookup" and analysis.detected_product:
-        # Fuzzy product lookup: find chunks via trigram similarity on aliases
+        # 2-stage product lookup: exact match first, then ILIKE fallback
         all_chunks = []
         seen_ids = set()
+        pn = analysis.detected_product
 
-        # 1. Fuzzy alias match (replaces exact match)
-        product_chunks_sql = text("""
-            SELECT c.id, COALESCE(c.cleaned_content, c.content) as content,
-                   c.document_id, c.page_number, c.section_title,
-                   d.title as document_title, d.source_type,
-                   CASE
-                       WHEN LOWER(pa.alias) = LOWER(:product_name) OR LOWER(p.name) = LOWER(:product_name) THEN 1.0
-                       WHEN LOWER(p.name) ILIKE LOWER(:product_name) || ' %' OR LOWER(p.name) ILIKE '% ' || LOWER(:product_name) THEN 0.8
-                       ELSE 0.5
-                   END as rrf_score
-            FROM chunks c
-            JOIN documents d ON c.document_id = d.id
-            JOIN document_products dp ON d.id = dp.document_id
-            JOIN products p ON dp.product_id = p.id
-            LEFT JOIN product_aliases pa ON p.id = pa.product_id
-            WHERE d.status = 'ready'
-              AND d.page_type = 'product_detail'
-              AND (c.is_searchable = true OR c.is_searchable IS NULL)
-              AND (
-                  LOWER(pa.alias) = LOWER(:product_name)
-                  OR LOWER(p.name) ILIKE '%' || LOWER(:product_name) || '%'
-                  OR LOWER(COALESCE(pa.alias, '')) ILIKE '%' || LOWER(:product_name) || '%'
-              )
-            ORDER BY rrf_score DESC, LENGTH(p.name) ASC, dp.confidence DESC, c.chunk_index ASC
-            LIMIT 6
-        """)
-        result = await db.execute(product_chunks_sql, {"product_name": analysis.detected_product})
+        # Stage 1: Find exact product ID
+        pn_variants = [pn]
+        if not pn.lower().startswith("roborock"):
+            pn_variants.append(f"Roborock {pn}")
+
+        matched_product_id = None
+        for q in pn_variants:
+            r = await db.execute(text(
+                "SELECT DISTINCT p.id FROM products p "
+                "LEFT JOIN product_aliases pa ON p.id = pa.product_id "
+                "WHERE LOWER(p.name) = LOWER(:q) OR LOWER(COALESCE(pa.alias, '')) = LOWER(:q) "
+                "LIMIT 1"
+            ), {"q": q})
+            row = r.scalar_one_or_none()
+            if row:
+                matched_product_id = row
+                break
+
+        # Stage 2: ILIKE fallback — pick shortest name match
+        if not matched_product_id:
+            r = await db.execute(text(
+                "SELECT p.id, p.name FROM products p "
+                "LEFT JOIN product_aliases pa ON p.id = pa.product_id "
+                "WHERE LOWER(p.name) ILIKE '%' || LOWER(:q) || '%' "
+                "   OR LOWER(COALESCE(pa.alias, '')) ILIKE '%' || LOWER(:q) || '%' "
+                "ORDER BY LENGTH(p.name) ASC LIMIT 1"
+            ), {"q": pn})
+            row = r.first()
+            if row:
+                matched_product_id = row[0]
+
+        # Get chunks for matched product only
+        if matched_product_id:
+            product_chunks_sql = text("""
+                SELECT c.id, COALESCE(c.cleaned_content, c.content) as content,
+                       c.document_id, c.page_number, c.section_title,
+                       d.title as document_title, d.source_type,
+                       1.0 as rrf_score
+                FROM chunks c
+                JOIN documents d ON c.document_id = d.id
+                JOIN document_products dp ON d.id = dp.document_id
+                WHERE dp.product_id = :pid
+                  AND d.status = 'ready'
+                  AND d.page_type = 'product_detail'
+                  AND (c.is_searchable = true OR c.is_searchable IS NULL)
+                ORDER BY dp.confidence DESC, c.chunk_index ASC
+                LIMIT 6
+            """)
+            result = await db.execute(product_chunks_sql, {"pid": matched_product_id})
         product_rows = result.mappings().all()
         for row in product_rows:
             chunk = {
