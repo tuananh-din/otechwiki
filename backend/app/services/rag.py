@@ -291,11 +291,67 @@ async def ask_with_rag(
 
     elif analysis.intent in ("policy", "troubleshooting", "feature_lookup", "specifications"):
         # Multi-query retrieval: product search + topic-specific search
-        # This ensures warranty questions get both product AND policy context
         all_chunks = []
         seen_ids = set()
 
-        # Primary search: corrected query
+        # If product detected, get product-specific chunks first (2-stage match)
+        if analysis.detected_product and analysis.intent in ("feature_lookup", "specifications"):
+            pn = analysis.detected_product
+            pn_variants = [pn]
+            if not pn.lower().startswith("roborock"):
+                pn_variants.append(f"Roborock {pn}")
+
+            matched_pid = None
+            for q in pn_variants:
+                r = await db.execute(text(
+                    "SELECT DISTINCT p.id FROM products p "
+                    "LEFT JOIN product_aliases pa ON p.id = pa.product_id "
+                    "WHERE LOWER(p.name) = LOWER(:q) OR LOWER(COALESCE(pa.alias, '')) = LOWER(:q) "
+                    "LIMIT 1"
+                ), {"q": q})
+                matched_pid = r.scalar_one_or_none()
+                if matched_pid:
+                    break
+
+            if not matched_pid:
+                r = await db.execute(text(
+                    "SELECT p.id FROM products p "
+                    "LEFT JOIN product_aliases pa ON p.id = pa.product_id "
+                    "WHERE LOWER(p.name) ILIKE '%' || LOWER(:q) || '%' "
+                    "ORDER BY LENGTH(p.name) ASC LIMIT 1"
+                ), {"q": pn})
+                matched_pid = r.scalar_one_or_none()
+
+            if matched_pid:
+                product_chunks = await db.execute(text("""
+                    SELECT c.id, COALESCE(c.cleaned_content, c.content) as content,
+                           c.document_id, c.page_number, c.section_title,
+                           d.title as document_title, d.source_type,
+                           1.0 as rrf_score
+                    FROM chunks c
+                    JOIN documents d ON c.document_id = d.id
+                    JOIN document_products dp ON d.id = dp.document_id
+                    WHERE dp.product_id = :pid
+                      AND d.status = 'ready'
+                      AND (c.is_searchable = true OR c.is_searchable IS NULL)
+                    ORDER BY dp.confidence DESC, c.chunk_index ASC
+                    LIMIT 8
+                """), {"pid": matched_pid})
+                for row in product_chunks.mappings().all():
+                    chunk = {
+                        "id": row["id"], "content": row["content"],
+                        "score": float(row["rrf_score"]),
+                        "document_id": row["document_id"],
+                        "document_title": row["document_title"],
+                        "source_type": row["source_type"],
+                        "page_number": row["page_number"],
+                        "section_title": row["section_title"],
+                    }
+                    if chunk["id"] not in seen_ids:
+                        all_chunks.append(chunk)
+                        seen_ids.add(chunk["id"])
+
+        # Primary search: corrected query (top up or main source for policy/troubleshooting)
         primary = await hybrid_search(
             db, search_query, limit=settings.rag_context_chunks,
             product_filter=product_filter, doc_type_filter=doc_type_filter,
