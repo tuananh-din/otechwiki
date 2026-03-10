@@ -56,6 +56,14 @@ def match_db_to_shopify(db_product_name: str, shopify_catalog: list[dict]) -> di
         if sp_without_brand == db_without_brand:
             return sp
 
+    # Strategy 4: No-space fuzzy match (e.g. "Q Revo" → "Qrevo")
+    db_nospace = re.sub(r"\s+", "", db_without_brand)
+    for sp in shopify_catalog:
+        sp_without_brand = re.sub(r"^roborock\s*", "", _normalize(sp["title"]), flags=re.IGNORECASE).strip()
+        sp_nospace = re.sub(r"\s+", "", sp_without_brand)
+        if sp_nospace == db_nospace:
+            return sp
+
     return None
 
 
