@@ -1,4 +1,8 @@
-"""Multi-source confidence mapping with alias support."""
+"""Multi-source confidence mapping with strict variant-aware matching.
+
+Key principle: a document about 'F25 Ace Pro' must NOT map to 'F25' base model.
+Uses longest-first regex matching from product_mapper.py patterns + Shopify handle matching.
+"""
 import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
@@ -13,6 +17,23 @@ NEEDS_REVIEW = 0.7
 def _normalize(text: str) -> str:
     """Lowercase, collapse whitespace, strip."""
     return re.sub(r"\s+", " ", text.lower().strip())
+
+
+def _extract_product_name_strict(text: str) -> str | None:
+    """Extract the MOST SPECIFIC product name from text using longest-first matching.
+
+    This is the core disambiguation logic: patterns are ordered longest-first,
+    so 'F25 Ace Pro' is matched before 'F25 Ace' before 'F25'.
+    """
+    from app.services.product_mapper import _compiled
+    clean = re.sub(r"Robot Hu[tts] B[uụ]i\s*", "", text, flags=re.IGNORECASE)
+    clean = re.sub(r"^Roborock\s*", "", clean, flags=re.IGNORECASE)
+
+    for pattern, raw in _compiled:
+        if pattern.search(clean):
+            name = re.sub(r"\s+", " ", raw.replace(r"\s*", " ").replace(r"\s+", " ")).strip()
+            return f"Roborock {name}"
+    return None
 
 
 def generate_aliases(products: list[Product]) -> list[dict]:
@@ -37,16 +58,7 @@ def generate_aliases(products: list[Product]) -> list[dict]:
 
         # 4. Common Vietnamese abbreviations
         vn_name = name.replace("Roborock ", "")
-        # "Robot hút bụi X" pattern
         aliases.append({"product_id": p.id, "alias": f"Robot hút bụi {vn_name}", "type": "nickname"})
-
-        # 5. Model number only (e.g. for S8, F25, Q8)
-        model_match = re.search(r"\b([A-Z]\d+)\b", short)
-        if model_match:
-            model_code = model_match.group(1)
-            # Only add if model code is unique enough (>= 2 chars)
-            if len(model_code) >= 2:
-                aliases.append({"product_id": p.id, "alias": model_code, "type": "abbreviation"})
 
     return aliases
 
@@ -73,6 +85,16 @@ async def seed_aliases(db: AsyncSession) -> int:
     return len(aliases)
 
 
+def _get_shopify_handle_from_url(url: str) -> str | None:
+    """Extract Shopify product handle from URL.
+    e.g. 'https://roborock.com.vn/products/roborock-f25-ace-pro' → 'roborock-f25-ace-pro'
+    """
+    if not url:
+        return None
+    m = re.search(r"/products/([a-z0-9\-]+)", url.lower())
+    return m.group(1) if m else None
+
+
 def score_mapping(
     doc: Document,
     product: Product,
@@ -80,49 +102,90 @@ def score_mapping(
 ) -> dict | None:
     """
     Score how well a document maps to a product.
-    Returns {product_id, confidence, matched_by, reason} or None.
+    Uses STRICT variant-aware matching to prevent cross-product contamination.
+
+    Strategy:
+    1. Shopify handle matching (URL contains product handle) → 1.0
+    2. Exact product extraction from title (longest-first regex) → 1.0
+    3. Exact product extraction from content (longest-first regex) → 0.7-0.8
     """
     title_norm = _normalize(doc.title)
     product_name_norm = _normalize(product.name)
-    product_short = _normalize(re.sub(r"^Roborock\s*", "", product.name, flags=re.IGNORECASE))
+    product_meta = product.metadata_ or {}
+    shopify_handle = product_meta.get("shopify_handle", "")
 
     best_confidence = 0.0
     matched_by = ""
     reason = ""
 
-    # 1. Exact title match → 1.0
-    if product_name_norm in title_norm or product_short in title_norm:
-        best_confidence = 1.0
-        matched_by = "title"
-        reason = f"Title contains '{product.name}'"
+    # === Strategy 1: Shopify handle in URL (most reliable) ===
+    if shopify_handle and doc.source_url:
+        doc_handle = _get_shopify_handle_from_url(doc.source_url)
+        if doc_handle and doc_handle == shopify_handle:
+            best_confidence = 1.0
+            matched_by = "shopify_url"
+            reason = f"URL handle '{doc_handle}' matches Shopify handle"
 
-    # 2. Alias match → 0.95
-    if best_confidence < 0.95:
-        product_aliases = [a for a in aliases if a.product_id == product.id]
-        for alias in product_aliases:
-            alias_norm = _normalize(alias.alias)
-            if len(alias_norm) >= 3 and alias_norm in title_norm:
-                best_confidence = max(best_confidence, 0.95)
-                matched_by = "alias"
-                reason = f"Title matches alias '{alias.alias}'"
-                break
+    # === Strategy 2: Exact product extraction from title ===
+    if best_confidence < 1.0:
+        extracted_name = _extract_product_name_strict(doc.title)
+        if extracted_name:
+            extracted_norm = _normalize(extracted_name)
+            if extracted_norm == product_name_norm:
+                best_confidence = 1.0
+                matched_by = "title_exact"
+                reason = f"Title extracts to '{extracted_name}' (exact match)"
 
-    # 3. URL pattern match → 0.5
-    if best_confidence < 0.5 and doc.source_url:
+    # === Strategy 3: Collection/comparison page — product mentioned in title ===
+    if best_confidence < 0.8:
+        # Only match if the FULL product short name appears in title as a distinct mention
+        product_short = re.sub(r"^roborock\s*", "", product_name_norm).strip()
+        if len(product_short) >= 3:
+            # Use word boundary matching to avoid partial matches
+            pattern = re.compile(
+                r"\b" + re.escape(product_short) + r"\b",
+                re.IGNORECASE,
+            )
+            if pattern.search(doc.title):
+                # But verify this is the MOST SPECIFIC match for this product family
+                title_extracted = _extract_product_name_strict(doc.title)
+                if title_extracted and _normalize(title_extracted) == product_name_norm:
+                    best_confidence = 0.85
+                    matched_by = "title_contains"
+                    reason = f"Title mentions '{product_short}' as primary product"
+
+    # === Strategy 4: URL slug contains product slug ===
+    if best_confidence < 0.7 and doc.source_url:
         url_norm = _normalize(doc.source_url)
+        product_short = re.sub(r"^roborock\s*", "", product_name_norm).strip()
         slug = re.sub(r"[^a-z0-9]+", "-", product_short).strip("-")
-        if slug and len(slug) >= 3 and slug in url_norm:
-            best_confidence = max(best_confidence, 0.5)
-            matched_by = "url"
-            reason = f"URL contains slug '{slug}'"
+        if slug and len(slug) >= 5 and slug in url_norm:
+            # Verify no longer slug also matches (e.g. "f25" vs "f25-ace-pro")
+            # Check if any other product has a longer slug that also matches
+            is_most_specific = True
+            all_slugs = []
+            for alias in aliases:
+                if alias.alias_type == "slug" and alias.product_id != product.id:
+                    if slug in _normalize(alias.alias) and len(alias.alias) > len(slug):
+                        # A more specific product also matches this URL
+                        a_slug = _normalize(alias.alias)
+                        if a_slug in url_norm:
+                            is_most_specific = False
+                            break
+            if is_most_specific:
+                best_confidence = 0.7
+                matched_by = "url_slug"
+                reason = f"URL contains slug '{slug}'"
 
-    # 4. Content mention → 0.7
+    # === Strategy 5: Content mention with strict extraction ===
     if best_confidence < 0.7 and doc.cleaned_text:
-        content_norm = _normalize(doc.cleaned_text[:2000])  # Check first 2000 chars
-        if product_short in content_norm:
-            best_confidence = max(best_confidence, 0.7)
-            matched_by = "content"
-            reason = f"Content mentions '{product.name}'"
+        # Extract product name from first 3000 chars of content
+        content_prefix = doc.cleaned_text[:3000]
+        content_name = _extract_product_name_strict(content_prefix)
+        if content_name and _normalize(content_name) == product_name_norm:
+            best_confidence = 0.7
+            matched_by = "content_extract"
+            reason = f"Content extracts to '{content_name}'"
 
     if best_confidence < NEEDS_REVIEW:
         return None
@@ -137,7 +200,7 @@ def score_mapping(
 
 
 async def map_document_v2(db: AsyncSession, doc: Document) -> list[dict]:
-    """Map a document to products using multi-source confidence scoring."""
+    """Map a document to products using strict variant-aware scoring."""
     # Get products and aliases
     products_result = await db.execute(select(Product))
     products = products_result.scalars().all()
