@@ -491,8 +491,8 @@ async def auto_map(db: AsyncSession = Depends(get_db), admin: User = Depends(req
 
 @router.get("/admin/product-matrix")
 async def get_product_matrix(db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
-    """Get product × document_type coverage matrix."""
-    doc_types = ["product_spec", "faq", "manual", "comparison", "warranty", "troubleshooting", "policy", "company_info"]
+    """Get product × page_type coverage matrix with mapping quality info."""
+    page_types = ["product_detail", "collection", "other", "homepage"]
 
     # Get all products with their documents
     products_result = await db.execute(select(Product).order_by(Product.name))
@@ -500,23 +500,29 @@ async def get_product_matrix(db: AsyncSession = Depends(get_db), admin: User = D
 
     matrix = []
     for product in products:
-        # Get documents for this product
+        # Get documents + mapping info for this product
         docs_result = await db.execute(
-            select(Document.id, Document.title, Document.document_type, Document.status)
+            select(
+                Document.id, Document.title, Document.page_type, Document.status,
+                document_products.c.matched_by, document_products.c.confidence,
+            )
             .join(document_products, Document.id == document_products.c.document_id)
             .where(document_products.c.product_id == product.id, Document.status == "ready")
         )
         docs = docs_result.all()
 
-        # Build coverage map
+        # Build coverage map by page_type
         coverage = {}
         doc_details = {}
+        match_quality = {"shopify_url": 0, "title_exact": 0, "title_contains": 0, "url_slug": 0, "content_extract": 0}
         for d in docs:
-            dt = d.document_type or "company_info"
-            coverage[dt] = coverage.get(dt, 0) + 1
-            if dt not in doc_details:
-                doc_details[dt] = []
-            doc_details[dt].append({"id": d.id, "title": d.title})
+            pt = d.page_type or "other"
+            coverage[pt] = coverage.get(pt, 0) + 1
+            if pt not in doc_details:
+                doc_details[pt] = []
+            doc_details[pt].append({"id": d.id, "title": d.title, "matched_by": d.matched_by, "confidence": d.confidence})
+            if d.matched_by in match_quality:
+                match_quality[d.matched_by] += 1
 
         # Calculate chunks
         chunk_count_result = await db.execute(
@@ -527,16 +533,23 @@ async def get_product_matrix(db: AsyncSession = Depends(get_db), admin: User = D
         )
         total_chunks = chunk_count_result.scalar() or 0
 
+        # Get price from metadata
+        meta = product.metadata_ or {}
+        price = meta.get("price", "N/A")
+
         matrix.append({
             "id": product.id,
             "name": product.name,
             "slug": product.slug,
             "category": product.category,
-            "coverage": {dt: coverage.get(dt, 0) for dt in doc_types},
+            "price": price,
+            "coverage": {pt: coverage.get(pt, 0) for pt in page_types},
             "doc_details": doc_details,
+            "match_quality": match_quality,
             "total_docs": len(docs),
             "total_chunks": total_chunks,
-            "coverage_score": sum(1 for dt in doc_types if coverage.get(dt, 0) > 0),
+            "coverage_score": sum(1 for pt in page_types if coverage.get(pt, 0) > 0),
+            "high_confidence_docs": sum(1 for d in docs if (d.confidence or 0) >= 0.9),
         })
 
     # Count unmapped docs
@@ -547,11 +560,12 @@ async def get_product_matrix(db: AsyncSession = Depends(get_db), admin: User = D
     unmapped = total_docs - len(mapped_ids)
 
     return {
-        "products": sorted(matrix, key=lambda x: -x["coverage_score"]),
+        "products": sorted(matrix, key=lambda x: -x["total_docs"]),
         "unmapped_docs": unmapped,
         "total_docs": total_docs,
-        "doc_types": doc_types,
+        "doc_types": page_types,
     }
+
 
 
 # --- Admin: Analytics ---
