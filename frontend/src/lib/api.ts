@@ -139,4 +139,31 @@ export const api = {
 
   reprocessAll: () =>
     apiFetch<any>("/api/admin/reprocess-all", { method: "POST" }),
+
+  // Knowledge Architecture V1
+  extractKnowledge: (productId: number, types: string = "specs,pricing,faq") =>
+    apiFetch<any>(`/api/admin/knowledge/extract?product_id=${productId}&extract_types=${types}`, { method: "POST" }),
+
+  batchExtractKnowledge: (productIds: number[], types: string = "specs,pricing,faq") =>
+    apiFetch<any>("/api/admin/knowledge/batch-extract?extract_types=" + types, {
+      method: "POST", body: JSON.stringify(productIds),
+    }),
+
+  getKnowledgeDrafts: (docType?: string) =>
+    apiFetch<any>(`/api/admin/knowledge/drafts${docType ? `?doc_type=${docType}` : ""}`),
+
+  getKnowledgeDraft: (docType: string, filename: string) =>
+    apiFetch<any>(`/api/admin/knowledge/draft/${docType}/${filename}`),
+
+  promoteKnowledgeDraft: (docType: string, filename: string) =>
+    apiFetch<any>(`/api/admin/knowledge/promote/${docType}/${filename}`, { method: "POST" }),
+
+  rejectKnowledgeDraft: (docType: string, filename: string, reason: string = "") =>
+    apiFetch<any>(`/api/admin/knowledge/reject/${docType}/${filename}?reason=${encodeURIComponent(reason)}`, { method: "POST" }),
+
+  archiveKnowledgeDraft: (docType: string, filename: string) =>
+    apiFetch<any>(`/api/admin/knowledge/archive/${docType}/${filename}`, { method: "POST" }),
+
+  getKnowledgeInventory: () =>
+    apiFetch<any>("/api/admin/knowledge/inventory"),
 };

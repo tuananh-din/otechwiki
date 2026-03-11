@@ -5,7 +5,7 @@ import Link from "next/link";
 import { clearToken } from "@/lib/api";
 import {
   Search, Package, FileText, Clock, LayoutDashboard,
-  Database, BarChart3, LogOut, Menu, X, BookOpen, Grid3x3, Sparkles, Paintbrush,
+  Database, BarChart3, LogOut, Menu, X, BookOpen, Grid3x3, Sparkles, Paintbrush, Brain,
 } from "lucide-react";
 
 const navItems = [
@@ -20,6 +20,7 @@ const adminItems = [
   { href: "/admin/data-sources", label: "Nguồn dữ liệu", icon: Database },
   { href: "/admin/product-mapping", label: "Product Mapping", icon: Grid3x3 },
   { href: "/admin/cleaning-dashboard", label: "Cleaning Pipeline", icon: Paintbrush },
+  { href: "/admin/knowledge", label: "Knowledge Base", icon: Brain },
   { href: "/admin/autocomplete-config", label: "Autocomplete", icon: Sparkles },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
