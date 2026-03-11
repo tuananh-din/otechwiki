@@ -214,3 +214,94 @@ def file_hash(filepath: str | Path) -> str:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+# ─── Audit Log ───────────────────────────────────────────────
+
+def audit_log(
+    action: str,
+    target: str,
+    actor: str = "system",
+    reason: str = "",
+    details: dict | None = None,
+) -> dict:
+    """Append to audit_log.json. Tracks promote/reject/archive/rollback actions."""
+    log_path = KNOWLEDGE_ROOT / "logs" / "audit_log.json"
+    log = _read_json(log_path) or {"entries": [], "count": 0}
+
+    entry = {
+        "action": action,
+        "target": target,
+        "actor": actor,
+        "reason": reason,
+        "details": details or {},
+        "timestamp": _now_iso(),
+    }
+
+    log["entries"].append(entry)
+    log["count"] = len(log["entries"])
+    _write_json(log_path, log)
+    return entry
+
+
+def get_audit_log(limit: int = 50) -> list:
+    """Read recent audit log entries."""
+    log_path = KNOWLEDGE_ROOT / "logs" / "audit_log.json"
+    log = _read_json(log_path) or {"entries": []}
+    return log["entries"][-limit:]
+
+
+# ─── Version / Rollback ─────────────────────────────────────
+
+VERSIONS_DIR = KNOWLEDGE_ROOT / "structured" / ".versions"
+
+
+def version_file(file_path: Path) -> str | None:
+    """Create a timestamped backup of a file before modification. Returns version path."""
+    if not file_path.exists():
+        return None
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    rel = file_path.relative_to(KNOWLEDGE_ROOT / "structured")
+    version_path = VERSIONS_DIR / f"{rel.stem}__{ts}{rel.suffix}"
+    version_path.parent.mkdir(parents=True, exist_ok=True)
+
+    import shutil
+    shutil.copy2(file_path, version_path)
+    return str(version_path.relative_to(KNOWLEDGE_ROOT))
+
+
+def list_versions(doc_type: str, filename: str) -> list[dict]:
+    """List all versions of a structured file."""
+    stem = Path(filename).stem
+    versions = []
+    if not VERSIONS_DIR.exists():
+        return versions
+
+    for f in sorted(VERSIONS_DIR.glob(f"{stem}__*.json"), reverse=True):
+        versions.append({
+            "version_file": f.name,
+            "path": str(f.relative_to(KNOWLEDGE_ROOT)),
+            "size_bytes": f.stat().st_size,
+            "created_at": datetime.fromtimestamp(
+                f.stat().st_mtime, tz=timezone.utc
+            ).isoformat(),
+        })
+    return versions
+
+
+def rollback_file(doc_type: str, filename: str, version_file_name: str) -> bool:
+    """Rollback a structured file to a previous version."""
+    version_path = VERSIONS_DIR / version_file_name
+    target_path = KNOWLEDGE_ROOT / "structured" / doc_type / filename
+
+    if not version_path.exists():
+        return False
+
+    # Back up current before rollback
+    version_file(target_path)
+
+    import shutil
+    shutil.copy2(version_path, target_path)
+    return True
+

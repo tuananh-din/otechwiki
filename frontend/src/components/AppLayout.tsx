@@ -5,7 +5,7 @@ import Link from "next/link";
 import { clearToken } from "@/lib/api";
 import {
   Search, Package, FileText, Clock, LayoutDashboard,
-  Database, BarChart3, LogOut, Menu, X, BookOpen, Grid3x3, Sparkles, Paintbrush, Brain,
+  Database, BarChart3, LogOut, Menu, X, BookOpen, Grid3x3, Sparkles, Paintbrush, Brain, Zap,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +21,7 @@ const adminItems = [
   { href: "/admin/product-mapping", label: "Product Mapping", icon: Grid3x3 },
   { href: "/admin/cleaning-dashboard", label: "Cleaning Pipeline", icon: Paintbrush },
   { href: "/admin/knowledge", label: "Knowledge Base", icon: Brain },
+  { href: "/admin/search-debug", label: "Search Debug", icon: Zap },
   { href: "/admin/autocomplete-config", label: "Autocomplete", icon: Sparkles },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];

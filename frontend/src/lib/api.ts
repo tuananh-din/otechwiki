@@ -166,4 +166,16 @@ export const api = {
 
   getKnowledgeInventory: () =>
     apiFetch<any>("/api/admin/knowledge/inventory"),
+
+  getKnowledgeAuditLog: (limit: number = 50) =>
+    apiFetch<any>(`/api/admin/knowledge/audit-log?limit=${limit}`),
+
+  getKnowledgeVersions: (docType: string, filename: string) =>
+    apiFetch<any>(`/api/admin/knowledge/versions/${docType}/${filename}`),
+
+  rollbackKnowledge: (docType: string, filename: string, versionFile: string = "") =>
+    apiFetch<any>(`/api/admin/knowledge/rollback/${docType}/${filename}?version_file=${encodeURIComponent(versionFile)}`, { method: "POST" }),
+
+  searchDebug: (query: string) =>
+    apiFetch<any>("/api/search-debug", { method: "POST", body: JSON.stringify({ query }) }),
 };

@@ -721,7 +721,7 @@ async def promote_knowledge_draft(
 ):
     """Promote a draft to canonical status after validation."""
     import json as _json
-    from app.services.manifest import KNOWLEDGE_ROOT, log_migration
+    from app.services.manifest import KNOWLEDGE_ROOT, log_migration, audit_log, version_file
     from app.services.validation_gate import validate_structured_json
 
     file_path = KNOWLEDGE_ROOT / "structured" / doc_type / filename
@@ -736,31 +736,43 @@ async def promote_knowledge_draft(
             "errors": validation.errors,
         })
 
-    # Update status in file
+    # Version backup before change
+    version_path = version_file(file_path)
+
+    # Update status + review metadata in file
     with open(file_path, "r", encoding="utf-8") as f:
         data = _json.load(f)
 
+    review_meta = {
+        "extraction_status": "canonical",
+        "promoted_at": _now_iso(),
+        "reviewed_by": admin.username,
+        "last_reviewed_at": _now_iso(),
+        "needs_review": False,
+    }
+
     if isinstance(data, dict):
-        data["extraction_status"] = "canonical"
-        data["promoted_at"] = _now_iso()
+        data.update(review_meta)
     elif isinstance(data, list):
         for item in data:
             if isinstance(item, dict):
-                item["extraction_status"] = "canonical"
-                item["promoted_at"] = _now_iso()
+                item.update(review_meta)
 
     with open(file_path, "w", encoding="utf-8") as f:
         _json.dump(data, f, indent=2, ensure_ascii=False)
 
-    # Log
-    product_code = ""
-    if isinstance(data, dict):
-        product_code = data.get("product_code", "")
+    # Audit + migration log
+    product_code = data.get("product_code", "") if isinstance(data, dict) else ""
+    audit_log(
+        action="promote", target=f"{doc_type}/{filename}",
+        actor=admin.username, details={"product_code": product_code, "version_backup": version_path},
+    )
     log_migration(0, "draft", "canonical", "promoted", f"{doc_type}/{filename} ({product_code})")
 
     return {
         "message": f"Promoted to canonical: {doc_type}/{filename}",
         "warnings": validation.warnings,
+        "version_backup": version_path,
     }
 
 
@@ -774,29 +786,42 @@ async def reject_knowledge_draft(
 ):
     """Reject a draft (mark as rejected, do not delete)."""
     import json as _json
-    from app.services.manifest import KNOWLEDGE_ROOT, log_migration
+    from app.services.manifest import KNOWLEDGE_ROOT, log_migration, audit_log, version_file
 
     file_path = KNOWLEDGE_ROOT / "structured" / doc_type / filename
     if not file_path.exists():
         raise HTTPException(404, f"Draft not found: {doc_type}/{filename}")
 
+    # Version backup
+    version_path = version_file(file_path)
+
     with open(file_path, "r", encoding="utf-8") as f:
         data = _json.load(f)
 
+    reject_meta = {
+        "extraction_status": "rejected",
+        "rejection_reason": reason,
+        "reviewed_by": admin.username,
+        "last_reviewed_at": _now_iso(),
+        "needs_review": False,
+    }
+
     if isinstance(data, dict):
-        data["extraction_status"] = "rejected"
-        data["rejection_reason"] = reason
+        data.update(reject_meta)
     elif isinstance(data, list):
         for item in data:
             if isinstance(item, dict):
-                item["extraction_status"] = "rejected"
-                item["rejection_reason"] = reason
+                item.update(reject_meta)
 
     with open(file_path, "w", encoding="utf-8") as f:
         _json.dump(data, f, indent=2, ensure_ascii=False)
 
+    audit_log(
+        action="reject", target=f"{doc_type}/{filename}",
+        actor=admin.username, reason=reason, details={"version_backup": version_path},
+    )
     log_migration(0, "draft", "rejected", "rejected", f"{doc_type}/{filename}: {reason}")
-    return {"message": f"Rejected: {doc_type}/{filename}", "reason": reason}
+    return {"message": f"Rejected: {doc_type}/{filename}", "reason": reason, "version_backup": version_path}
 
 
 @router.post("/admin/knowledge/archive/{doc_type}/{filename}")
@@ -808,27 +833,37 @@ async def archive_knowledge_draft(
 ):
     """Archive a draft (move to archived status)."""
     import json as _json
-    from app.services.manifest import KNOWLEDGE_ROOT, log_migration
+    from app.services.manifest import KNOWLEDGE_ROOT, log_migration, audit_log, version_file
 
     file_path = KNOWLEDGE_ROOT / "structured" / doc_type / filename
     if not file_path.exists():
         raise HTTPException(404, f"Draft not found: {doc_type}/{filename}")
 
+    version_path = version_file(file_path)
+
     with open(file_path, "r", encoding="utf-8") as f:
         data = _json.load(f)
 
+    archive_meta = {
+        "extraction_status": "archived",
+        "reviewed_by": admin.username,
+        "last_reviewed_at": _now_iso(),
+        "needs_review": False,
+    }
+
     if isinstance(data, dict):
-        data["extraction_status"] = "archived"
+        data.update(archive_meta)
     elif isinstance(data, list):
         for item in data:
             if isinstance(item, dict):
-                item["extraction_status"] = "archived"
+                item.update(archive_meta)
 
     with open(file_path, "w", encoding="utf-8") as f:
         _json.dump(data, f, indent=2, ensure_ascii=False)
 
+    audit_log(action="archive", target=f"{doc_type}/{filename}", actor=admin.username)
     log_migration(0, "draft", "archived", "archived", f"{doc_type}/{filename}")
-    return {"message": f"Archived: {doc_type}/{filename}"}
+    return {"message": f"Archived: {doc_type}/{filename}", "version_backup": version_path}
 
 
 @router.get("/admin/knowledge/inventory")
@@ -839,6 +874,109 @@ async def get_knowledge_inventory(
     """View knowledge inventory manifest."""
     from app.services.manifest import build_inventory
     return build_inventory()
+
+
+@router.get("/admin/knowledge/audit-log")
+async def get_knowledge_audit_log(
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """View audit log of promote/reject/archive actions."""
+    from app.services.manifest import get_audit_log
+    entries = get_audit_log(limit)
+    return {"entries": entries, "total": len(entries)}
+
+
+@router.get("/admin/knowledge/versions/{doc_type}/{filename}")
+async def get_knowledge_versions(
+    doc_type: str,
+    filename: str,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """List version history for a structured file."""
+    from app.services.manifest import list_versions
+    versions = list_versions(doc_type, filename)
+    return {"file": f"{doc_type}/{filename}", "versions": versions, "total": len(versions)}
+
+
+@router.post("/admin/knowledge/rollback/{doc_type}/{filename}")
+async def rollback_knowledge_draft(
+    doc_type: str,
+    filename: str,
+    version_file: str = "",
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Rollback a structured file to a previous version."""
+    from app.services.manifest import rollback_file, audit_log, list_versions
+    if not version_file:
+        versions = list_versions(doc_type, filename)
+        if not versions:
+            raise HTTPException(404, "No versions found to rollback")
+        version_file = versions[0]["version_file"]
+
+    success = rollback_file(doc_type, filename, version_file)
+    if not success:
+        raise HTTPException(404, f"Version not found: {version_file}")
+
+    audit_log(
+        action="rollback", target=f"{doc_type}/{filename}",
+        actor=admin.username, details={"restored_from": version_file},
+    )
+    return {"message": f"Rolled back: {doc_type}/{filename}", "restored_from": version_file}
+
+
+@router.post("/api/search-debug")
+async def search_debug(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Debug endpoint: shows canonical vs legacy breakdown in search."""
+    body = await request.json()
+    query = body.get("query", "")
+
+    from app.services.query_understanding import analyze_query
+    from app.services.structured_lookup import get_structured_context
+
+    analysis = await analyze_query(query)
+    structured_hit = None
+    if analysis.detected_product:
+        for intent in ["specifications", "price_lookup", "feature_lookup", "general"]:
+            ctx = get_structured_context(analysis.detected_product, intent)
+            if ctx:
+                structured_hit = {"product": analysis.detected_product, "intent": intent, "context_length": len(ctx), "preview": ctx[:300]}
+                break
+
+    from app.services.search import hybrid_search
+    legacy_chunks = await hybrid_search(db, query, limit=5)
+
+    return {
+        "query": query,
+        "analysis": {
+            "intent": analysis.intent,
+            "corrected_query": analysis.corrected_query,
+            "detected_products": analysis.detected_products,
+            "expanded_keywords": analysis.expanded_keywords,
+        },
+        "canonical": {
+            "hit": structured_hit is not None,
+            "data": structured_hit,
+        },
+        "legacy": {
+            "chunk_count": len(legacy_chunks),
+            "chunks": [
+                {
+                    "id": c["id"],
+                    "document_title": c["document_title"],
+                    "score": round(c["score"], 4),
+                    "snippet": c["content"][:150],
+                }
+                for c in legacy_chunks
+            ],
+        },
+    }
 
 
 def _now_iso():
