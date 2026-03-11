@@ -928,7 +928,7 @@ async def rollback_knowledge_draft(
     return {"message": f"Rolled back: {doc_type}/{filename}", "restored_from": version_file}
 
 
-@router.post("/api/search-debug")
+@router.post("/search-debug")
 async def search_debug(
     request: Request,
     db: AsyncSession = Depends(get_db),
