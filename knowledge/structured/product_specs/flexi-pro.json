@@ -1,0 +1,30 @@
+{
+  "product_code": "FLEXI-PRO",
+  "product_name": "Roborock Flexi Pro",
+  "specs": [
+    {"category": "Hiệu suất", "key": "Lực hút tối đa", "value": "17.000 Pa"},
+    {"category": "Hiệu suất", "key": "Tốc độ chổi", "value": "520 vòng/phút"},
+    {"category": "Hệ thống lau", "key": "Công nghệ lau", "value": "Lau hút đồng thời, tự động làm sạch chổi"},
+    {"category": "Hệ thống lau", "key": "Tự giặt chổi", "value": "Nước nóng 75°C, tự động sấy khô"},
+    {"category": "Pin", "key": "Dung lượng pin", "value": "4000 mAh"},
+    {"category": "Pin", "key": "Thời gian hoạt động", "value": "Tối đa 40 phút"},
+    {"category": "Thiết kế", "key": "Loại sản phẩm", "value": "Máy hút lau sàn không dây đa năng"},
+    {"category": "Thiết kế", "key": "Thiết kế nằm phẳng", "value": "Có – lau được gầm bàn, giường"},
+    {"category": "Dung tích", "key": "Bình nước sạch", "value": "780 ml"},
+    {"category": "Dung tích", "key": "Bình nước bẩn", "value": "500 ml"},
+    {"category": "Cảm biến", "key": "Nhận diện sàn", "value": "Tự động điều chỉnh lực hút theo loại sàn"},
+    {"category": "Màn hình", "key": "Màn hình hiển thị", "value": "LED – mức pin, chế độ, tự làm sạch"}
+  ],
+  "features": [
+    "Hút và lau sàn đồng thời, ba chế độ hút",
+    "Tự giặt + sấy chổi bằng nước nóng 75°C",
+    "Thiết kế nằm phẳng 180° lau gầm giường",
+    "Cảm biến nhận diện loại sàn tự động",
+    "DryForce – sấy khô hoàn toàn sau khi lau"
+  ],
+  "source_confidence": "medium",
+  "extraction_model": "manual",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T08:44:00+00:00",
+  "price": "9.990.000₫"
+}

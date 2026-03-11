@@ -1,0 +1,28 @@
+{
+  "product_code": "H60-ULTRA",
+  "product_name": "Roborock H60 Ultra",
+  "specs": [
+    {"category": "Hiệu suất", "key": "Lực hút tối đa", "value": "35.000 Pa"},
+    {"category": "Hiệu suất", "key": "Công suất", "value": "800 W"},
+    {"category": "Pin", "key": "Dung lượng pin", "value": "7500 mAh (Li-ion)"},
+    {"category": "Pin", "key": "Thời gian sạc", "value": "~3.5 giờ"},
+    {"category": "Pin", "key": "Thời gian hoạt động", "value": "Tối đa 90 phút (chế độ tiết kiệm)"},
+    {"category": "Thiết kế", "key": "Loại sản phẩm", "value": "Máy hút bụi cầm tay không dây"},
+    {"category": "Thiết kế", "key": "Trọng lượng", "value": "2.6 kg"},
+    {"category": "Thiết kế", "key": "Màn hình", "value": "LED hiển thị pin + chế độ"},
+    {"category": "Lọc", "key": "Hệ thống lọc", "value": "HEPA 5 lớp, lọc 99.97% bụi mịn 0.3μm"},
+    {"category": "Phụ kiện", "key": "Đầu hút", "value": "Đầu hút sàn, đầu hút khe, đầu hút sofa mini, đầu hút da"}
+  ],
+  "features": [
+    "Lực hút mạnh 35.000 Pa cho sàn cứng và thảm",
+    "Pin siêu bền 7500 mAh hoạt động đến 90 phút",
+    "Hệ thống lọc HEPA 5 lớp chống bụi mịn",
+    "Thiết kế nhẹ 2.6 kg thoải mái sử dụng",
+    "Màn hình LED hiển thị mức pin và chế độ hút"
+  ],
+  "source_confidence": "medium",
+  "extraction_model": "manual",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T08:44:00+00:00",
+  "price": "12.990.000₫"
+}
