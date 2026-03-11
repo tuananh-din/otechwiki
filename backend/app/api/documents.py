@@ -609,3 +609,239 @@ async def get_analytics(db: AsyncSession = Depends(get_db), admin: User = Depend
         total_searches=total_searches, total_documents=total_documents, total_chunks=total_chunks,
         top_queries=top_queries, no_result_queries=no_result_queries, searches_by_day=searches_by_day,
     )
+
+
+# --- Admin: Knowledge Architecture V1 ---
+
+@router.post("/admin/knowledge/extract")
+async def extract_knowledge(
+    product_id: int,
+    extract_types: str = "specs,pricing,faq",
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Run GPT-based extraction for a product. Creates DRAFT structured JSON."""
+    from app.services.knowledge_extractor import extract_product_specs, extract_pricing, extract_faq_pairs
+    types = [t.strip() for t in extract_types.split(",")]
+    results = {}
+    if "specs" in types:
+        results["specs"] = await extract_product_specs(db, product_id)
+    if "pricing" in types:
+        results["pricing"] = await extract_pricing(db, product_id)
+    if "faq" in types:
+        results["faq"] = await extract_faq_pairs(db, product_id)
+    return {"product_id": product_id, "extractions": results, "status": "draft"}
+
+
+@router.post("/admin/knowledge/batch-extract")
+async def batch_extract_knowledge(
+    product_ids: list[int],
+    extract_types: str = "specs,pricing,faq",
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Run extraction for multiple products."""
+    from app.services.knowledge_extractor import batch_extract
+    types = [t.strip() for t in extract_types.split(",")]
+    results = await batch_extract(db, product_ids, types)
+    return {"results": results, "total": len(results)}
+
+
+@router.get("/admin/knowledge/drafts")
+async def list_knowledge_drafts(
+    doc_type: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """List all draft structured records from knowledge/ filesystem."""
+    import json as _json
+    from app.services.manifest import KNOWLEDGE_ROOT
+
+    structured_dir = KNOWLEDGE_ROOT / "structured"
+    drafts = []
+
+    for type_dir in structured_dir.iterdir():
+        if not type_dir.is_dir():
+            continue
+        if doc_type and type_dir.name != doc_type:
+            continue
+        for f in type_dir.glob("*.json"):
+            try:
+                with open(f, "r", encoding="utf-8") as fh:
+                    data = _json.load(fh)
+                status = "draft"
+                product_name = ""
+                if isinstance(data, dict):
+                    status = data.get("extraction_status", "draft")
+                    product_name = data.get("product_name", "")
+                elif isinstance(data, list) and data:
+                    status = data[0].get("extraction_status", "draft")
+                    product_name = data[0].get("product_name", "")
+                drafts.append({
+                    "file": f.name,
+                    "type": type_dir.name,
+                    "path": str(f.relative_to(KNOWLEDGE_ROOT)),
+                    "product_name": product_name,
+                    "status": status,
+                    "size_bytes": f.stat().st_size,
+                })
+            except Exception:
+                pass
+
+    return {"drafts": drafts, "total": len(drafts)}
+
+
+@router.get("/admin/knowledge/draft/{doc_type}/{filename}")
+async def view_knowledge_draft(
+    doc_type: str,
+    filename: str,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """View contents of a specific draft structured record."""
+    import json as _json
+    from app.services.manifest import KNOWLEDGE_ROOT
+
+    file_path = KNOWLEDGE_ROOT / "structured" / doc_type / filename
+    if not file_path.exists():
+        raise HTTPException(404, f"Draft not found: {doc_type}/{filename}")
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = _json.load(f)
+
+    return {"path": str(file_path.relative_to(KNOWLEDGE_ROOT)), "type": doc_type, "data": data}
+
+
+@router.post("/admin/knowledge/promote/{doc_type}/{filename}")
+async def promote_knowledge_draft(
+    doc_type: str,
+    filename: str,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Promote a draft to canonical status after validation."""
+    import json as _json
+    from app.services.manifest import KNOWLEDGE_ROOT, log_migration
+    from app.services.validation_gate import validate_structured_json
+
+    file_path = KNOWLEDGE_ROOT / "structured" / doc_type / filename
+    if not file_path.exists():
+        raise HTTPException(404, f"Draft not found: {doc_type}/{filename}")
+
+    # Validate before promoting
+    validation = validate_structured_json(str(file_path), doc_type)
+    if not validation.valid:
+        raise HTTPException(400, {
+            "message": "Validation failed. Cannot promote.",
+            "errors": validation.errors,
+        })
+
+    # Update status in file
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = _json.load(f)
+
+    if isinstance(data, dict):
+        data["extraction_status"] = "canonical"
+        data["promoted_at"] = _now_iso()
+    elif isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict):
+                item["extraction_status"] = "canonical"
+                item["promoted_at"] = _now_iso()
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        _json.dump(data, f, indent=2, ensure_ascii=False)
+
+    # Log
+    product_code = ""
+    if isinstance(data, dict):
+        product_code = data.get("product_code", "")
+    log_migration(0, "draft", "canonical", "promoted", f"{doc_type}/{filename} ({product_code})")
+
+    return {
+        "message": f"Promoted to canonical: {doc_type}/{filename}",
+        "warnings": validation.warnings,
+    }
+
+
+@router.post("/admin/knowledge/reject/{doc_type}/{filename}")
+async def reject_knowledge_draft(
+    doc_type: str,
+    filename: str,
+    reason: str = "",
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Reject a draft (mark as rejected, do not delete)."""
+    import json as _json
+    from app.services.manifest import KNOWLEDGE_ROOT, log_migration
+
+    file_path = KNOWLEDGE_ROOT / "structured" / doc_type / filename
+    if not file_path.exists():
+        raise HTTPException(404, f"Draft not found: {doc_type}/{filename}")
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = _json.load(f)
+
+    if isinstance(data, dict):
+        data["extraction_status"] = "rejected"
+        data["rejection_reason"] = reason
+    elif isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict):
+                item["extraction_status"] = "rejected"
+                item["rejection_reason"] = reason
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        _json.dump(data, f, indent=2, ensure_ascii=False)
+
+    log_migration(0, "draft", "rejected", "rejected", f"{doc_type}/{filename}: {reason}")
+    return {"message": f"Rejected: {doc_type}/{filename}", "reason": reason}
+
+
+@router.post("/admin/knowledge/archive/{doc_type}/{filename}")
+async def archive_knowledge_draft(
+    doc_type: str,
+    filename: str,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Archive a draft (move to archived status)."""
+    import json as _json
+    from app.services.manifest import KNOWLEDGE_ROOT, log_migration
+
+    file_path = KNOWLEDGE_ROOT / "structured" / doc_type / filename
+    if not file_path.exists():
+        raise HTTPException(404, f"Draft not found: {doc_type}/{filename}")
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        data = _json.load(f)
+
+    if isinstance(data, dict):
+        data["extraction_status"] = "archived"
+    elif isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict):
+                item["extraction_status"] = "archived"
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        _json.dump(data, f, indent=2, ensure_ascii=False)
+
+    log_migration(0, "draft", "archived", "archived", f"{doc_type}/{filename}")
+    return {"message": f"Archived: {doc_type}/{filename}"}
+
+
+@router.get("/admin/knowledge/inventory")
+async def get_knowledge_inventory(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """View knowledge inventory manifest."""
+    from app.services.manifest import build_inventory
+    return build_inventory()
+
+
+def _now_iso():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
