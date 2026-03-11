@@ -1,0 +1,131 @@
+{
+  "version": "2.0",
+  "description": "Bộ câu hỏi đánh giá chất lượng retrieval — V2 (fixed expectations)",
+  "questions": [
+    {
+      "id": "price_f25",
+      "query": "Giá bán của Roborock F25?",
+      "intent": "price_lookup",
+      "expected_product": "Roborock F25",
+      "expected_answer_contains": ["8.990.000"],
+      "must_not_contain": ["14.990.000", "F25 Ace Pro", "F25 Ultra"]
+    },
+    {
+      "id": "price_f25_ace_pro",
+      "query": "Roborock F25 Ace Pro giá bao nhiêu?",
+      "intent": "price_lookup",
+      "expected_product": "Roborock F25 Ace Pro",
+      "expected_answer_contains": ["14.990.000"]
+    },
+    {
+      "id": "feature_f25",
+      "query": "Tính năng nổi bật của F25?",
+      "intent": "feature_lookup",
+      "expected_answer_contains": ["F25"],
+      "must_not_contain": ["F25 Ace Pro", "F25 Ultra"]
+    },
+    {
+      "id": "compare_f25_series",
+      "query": "So sánh F25 và F25 Ace Pro?",
+      "intent": "comparison",
+      "expected_answer_contains": ["F25"]
+    },
+    {
+      "id": "spec_qrevo_curv",
+      "query": "Thông số kỹ thuật Qrevo Curv?",
+      "intent": "specifications",
+      "expected_answer_contains": ["Qrevo Curv"],
+      "must_not_contain": ["Qrevo Master"]
+    },
+    {
+      "id": "price_s8_maxv",
+      "query": "Giá Roborock S8 MaxV Ultra?",
+      "intent": "price_lookup",
+      "expected_answer_contains": ["S8 MaxV Ultra"]
+    },
+    {
+      "id": "troubleshoot_error",
+      "query": "Robot hút bụi Roborock bị lỗi E1 phải làm sao?",
+      "intent": "troubleshooting",
+      "expected_answer_contains": ["E1"]
+    },
+    {
+      "id": "warranty_policy",
+      "query": "Chính sách bảo hành Roborock?",
+      "intent": "policy",
+      "expected_answer_contains": ["bảo hành"]
+    },
+    {
+      "id": "recommend_budget",
+      "query": "Nên mua robot hút bụi nào dưới 10 triệu?",
+      "intent": "model_recommendation",
+      "expected_answer_contains": ["Roborock"]
+    },
+    {
+      "id": "feature_saros_z70",
+      "query": "Saros Z70 có tính năng gì đặc biệt?",
+      "intent": "feature_lookup",
+      "expected_answer_contains": ["Saros Z70"]
+    },
+    {
+      "id": "compare_qrevo_vs_s8",
+      "query": "So sánh Qrevo Curv và S8 MaxV Ultra?",
+      "intent": "comparison",
+      "expected_answer_contains": ["Qrevo", "S8"]
+    },
+    {
+      "id": "dyad_pro_usage",
+      "query": "Hướng dẫn sử dụng Dyad Pro Combo?",
+      "intent": "how_to",
+      "expected_answer_contains": ["Dyad Pro"]
+    },
+    {
+      "id": "price_flexi_pro",
+      "query": "Roborock Flexi Pro giá bao nhiêu?",
+      "intent": "price_lookup",
+      "expected_answer_contains": ["Flexi Pro"]
+    },
+    {
+      "id": "accessory_filter",
+      "query": "Lõi lọc thay thế cho Qrevo Curv mua ở đâu?",
+      "intent": "purchase",
+      "expected_answer_contains": ["Qrevo Curv"]
+    },
+    {
+      "id": "general_brand",
+      "query": "Roborock là hãng nào? Có uy tín không?",
+      "intent": "general",
+      "expected_answer_contains": ["Roborock"]
+    },
+    {
+      "id": "spec_h60_ultra",
+      "query": "Roborock H60 Ultra có lực hút bao nhiêu Pa?",
+      "intent": "specifications",
+      "expected_answer_contains": ["H60 Ultra", "Pa"]
+    },
+    {
+      "id": "compare_saros_10_vs_10r",
+      "query": "Saros 10 và Saros 10R khác gì nhau?",
+      "intent": "comparison",
+      "expected_answer_contains": ["Saros 10"]
+    },
+    {
+      "id": "feature_flexiarm",
+      "query": "FlexiArm là gì?",
+      "intent": "feature_lookup",
+      "expected_answer_contains": ["FlexiArm"]
+    },
+    {
+      "id": "price_saros_20_sonic",
+      "query": "Giá Saros 20 Sonic?",
+      "intent": "price_lookup",
+      "expected_answer_contains": ["Saros 20 Sonic"]
+    },
+    {
+      "id": "recommend_pet_hair",
+      "query": "Nhà có thú cưng nên mua robot nào?",
+      "intent": "model_recommendation",
+      "expected_answer_contains": ["Roborock"]
+    }
+  ]
+}
