@@ -13,7 +13,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ks_admin -d knowledge_search"]
+      test: [ "CMD-SHELL", "pg_isready -U ks_admin -d knowledge_search" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,6 +33,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/uploads:/app/uploads
+      - knowledge_data:/app/knowledge
 
   frontend:
     build:
@@ -46,3 +47,4 @@ services:
 
 volumes:
   pgdata:
+  knowledge_data:
