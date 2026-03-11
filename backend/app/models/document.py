@@ -65,6 +65,17 @@ class Document(Base):
     last_fetched_at = Column(DateTime(timezone=True))
     import_status = Column(String(20), default="discovered")
     # Statuses: discovered, fetched, cleaned, chunked, indexed, unchanged, failed, stale
+    # Knowledge Architecture V1 fields
+    knowledge_layer = Column(String(20), default="legacy")
+    # Values: legacy | raw | cleaned | structured | indexed
+    canonical_status = Column(String(20), default="legacy")
+    # Values: legacy | draft | reviewed | canonical
+    knowledge_path = Column(String(500))
+    # Path within knowledge/ tree (e.g. "structured/product_specs/f25-ace-pro.json")
+    product_code = Column(String(100))
+    # Normalized product model code (e.g. "F25-ACE-PRO")
+    version_tag = Column(String(50))
+    # Semantic version (e.g. "v1.0")
 
     products = relationship("Product", secondary="document_products", back_populates="documents")
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
@@ -89,6 +100,9 @@ class Chunk(Base):
     is_searchable = Column(Boolean, default=True)
     dedup_hash = Column(String(64))
     mapping_confidence = Column(Integer)  # stored as Float in DB
+    # Knowledge Architecture V1
+    knowledge_layer = Column(String(20), default="legacy")
+    # Chunks from canonical docs get "canonical", legacy stays "legacy"
 
     document = relationship("Document", back_populates="chunks")
 
