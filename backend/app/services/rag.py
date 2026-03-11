@@ -390,7 +390,18 @@ async def ask_with_rag(
             product_filter=product_filter, doc_type_filter=doc_type_filter,
         )
 
-    if not chunks:
+    # 1b. Structured lookup: direct JSON access (canonical-first, no vector search needed)
+    structured_context = None
+    structured_sources = []
+    if analysis.detected_product:
+        from app.services.structured_lookup import get_structured_context
+        for product_name in analysis.detected_products or [analysis.detected_product]:
+            sc = get_structured_context(product_name, analysis.intent)
+            if sc:
+                structured_context = sc if not structured_context else f"{structured_context}\n\n---\n\n{sc}"
+                structured_sources.append({"type": "structured_json", "product": product_name, "intent": analysis.intent})
+
+    if not chunks and not structured_context:
         follow_ups = generate_follow_ups(query, analysis.intent, analysis.detected_product)
         return {
             "answer": "Không tìm thấy thông tin phù hợp trong dữ liệu hiện có. Vui lòng kiểm tra lại từ khóa hoặc cập nhật thêm nguồn tài liệu.",
@@ -400,8 +411,14 @@ async def ask_with_rag(
             "follow_up_questions": follow_ups,
         }
 
-    # 2. Build context from chunks
+    # 2. Build context: structured (canonical) first, then legacy chunks
     context_parts = []
+
+    # 2a. Inject structured data as HIGHEST PRIORITY context
+    if structured_context:
+        context_parts.append(f"[CANONICAL DATA — Structured Knowledge Base]\n{structured_context}")
+
+    # 2b. Legacy chunk context
     for i, chunk in enumerate(chunks, 1):
         source = chunk["document_title"]
         page = f", trang {chunk['page_number']}" if chunk.get("page_number") else ""
@@ -410,7 +427,7 @@ async def ask_with_rag(
 
     context = "\n\n---\n\n".join(context_parts)
 
-    # 2b. Inject structured product metadata if product detected
+    # 2c. Inject DB product metadata as additional context
     if analysis.detected_product:
         meta_ctx = await _get_product_metadata_context(db, analysis.detected_product)
         if meta_ctx:
@@ -462,4 +479,5 @@ async def ask_with_rag(
         "no_result": False,
         "answer_type": answer_type,
         "follow_up_questions": follow_ups,
+        "structured_sources": structured_sources,
     }
