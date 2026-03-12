@@ -1,0 +1,22 @@
+﻿{
+  "product_code": "S8-MAXV-ULTRA",
+  "product_name": "Roborock S8 Maxv Ultra",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "...Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "...mAh"
+    }
+  ],
+  "features": [],
+  "source_confidence": "low",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:31:35.611703+00:00",
+  "price": "32.990.000₫"
+}

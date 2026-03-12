@@ -1,0 +1,70 @@
+﻿{
+  "product_code": "QREVO-CURV-2-PRO",
+  "product_name": "Roborock Qrevo Curv 2 Pro",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "25.000 Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "6400 mAh"
+    },
+    {
+      "category": "Thời gian hoạt động",
+      "key": "Thời gian hoạt động",
+      "value": "220 phút"
+    },
+    {
+      "category": "Công suất",
+      "key": "Công suất",
+      "value": "60W"
+    },
+    {
+      "category": "Độ ồn",
+      "key": "Độ ồn",
+      "value": "52 dB"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp bụi",
+      "value": "245 ml"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp nước",
+      "value": "67 ml"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước robot",
+      "value": "350*352*79.8mm"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước trạm sạc",
+      "value": "450*450*450mm"
+    }
+  ],
+  "features": [
+    "Hệ thống chống rối 3 lớp thông minh",
+    "Thiết kế siêu mỏng 7,98cm",
+    "Hệ thống nâng hạ gầm tiên phong",
+    "Công nghệ FlexiArm",
+    "Trạm sạc đa năng 3.0",
+    "Giặt khăn lau bằng nước nóng 100°C",
+    "Sấy khô khăn lau bằng khí nóng 55°C",
+    "Tốc độ lau xoay 200 vòng/phút",
+    "Lượng nước tùy chỉnh khi lau 30 cấp độ",
+    "Điều khiển từ xa qua ứng dụng Roborock",
+    "Điều khiển bằng giọng nói",
+    "Camera đàm thoại 2 chiều"
+  ],
+  "source_confidence": "high",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:24:23.598159+00:00",
+  "price": "29.990.000₫"
+}

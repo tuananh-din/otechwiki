@@ -1,0 +1,77 @@
+﻿{
+  "product_code": "SAROS-Z70",
+  "product_name": "Roborock Saros Z70",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "22.000 Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "6.400 mAh"
+    },
+    {
+      "category": "Thời gian hoạt động",
+      "key": "Thời gian hoạt động (chế độ im lặng)",
+      "value": "180 phút"
+    },
+    {
+      "category": "Công suất",
+      "key": "Công suất",
+      "value": "65W"
+    },
+    {
+      "category": "Độ ồn",
+      "key": "Độ ồn",
+      "value": "65dB"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp bụi",
+      "value": "180 ml"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp nước",
+      "value": "69 ml"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước Robot hút bụi",
+      "value": "350 x 353 x 79.8 mm"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước Trạm sạc",
+      "value": "381 x 475 x 488 mm"
+    },
+    {
+      "category": "Trọng lượng",
+      "key": "Trọng lượng nguyên hộp",
+      "value": "22.3 kg"
+    },
+    {
+      "category": "Trọng lượng",
+      "key": "Trọng lượng Robot",
+      "value": "5.8 kg"
+    },
+    {
+      "category": "Trọng lượng",
+      "key": "Trọng lượng Trạm sạc",
+      "value": "16.5 kg"
+    }
+  ],
+  "features": [
+    "Cánh tay cơ học OmniGrip",
+    "Công nghệ điều hướng StarSight 2.0",
+    "Hệ thống nâng hạ khung gầm AdaptiLift",
+    "Trạm sạc đa năng 4.0"
+  ],
+  "source_confidence": "high",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:24:35.705214+00:00",
+  "price": "44.900.000₫"
+}

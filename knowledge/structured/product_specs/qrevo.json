@@ -1,0 +1,25 @@
+﻿{
+  "product_code": "QREVO",
+  "product_name": "Roborock Qrevo",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "...Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "...mAh"
+    }
+  ],
+  "features": [
+    "Sản phẩm dễ dàng vệ sinh và sử dụng lại",
+    "Nên vệ sinh định kỳ mỗi 2 tuần và thay mới sau mỗi 6 đến 12 tháng để đảm bảo hiệu quả tối ưu"
+  ],
+  "source_confidence": "medium",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:12:02.905597+00:00",
+  "price": "18.990.000₫"
+}

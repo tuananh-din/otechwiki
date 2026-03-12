@@ -1,0 +1,25 @@
+﻿{
+  "product_code": "QREVO-CURV",
+  "product_name": "Roborock Qrevo Curv",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "..."
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "..."
+    }
+  ],
+  "features": [
+    "Chổi chính thay thế cho robot hút bụi",
+    "Bàn chải hoàn toàn bằng cao su"
+  ],
+  "source_confidence": "medium",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:18:47.435460+00:00",
+  "price": "29.990.000₫"
+}

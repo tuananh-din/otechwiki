@@ -1,0 +1,70 @@
+﻿{
+  "product_code": "F25-ACE",
+  "product_name": "Roborock F25 Ace",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "20.000 Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "4000 mAh"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước máy",
+      "value": "262 x 242 x 1100 mm"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước máy kèm trạm sạc",
+      "value": "332 x 305 x 728 mm"
+    },
+    {
+      "category": "Khối lượng",
+      "key": "Khối lượng máy",
+      "value": "4.7 kg"
+    },
+    {
+      "category": "Khối lượng",
+      "key": "Khối lượng máy kèm trạm sạc",
+      "value": "6.3 kg"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích bình nước sạch",
+      "value": "740 ml"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích bình nước bẩn (Đặt đứng)",
+      "value": "720 ml"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích bình nước bẩn (Ngã phẳng)",
+      "value": "600 ml"
+    },
+    {
+      "category": "Thời gian hoạt động",
+      "key": "Thời gian hoạt động (chế độ ECO)",
+      "value": "60 phút"
+    },
+    {
+      "category": "Công suất",
+      "key": "Tổng công suất",
+      "value": "240 W"
+    }
+  ],
+  "features": [
+    "Điều khiển từ xa qua ứng dụng",
+    "Cảm biến DirTect tự động điều chỉnh lực hút"
+  ],
+  "source_confidence": "high",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:24:10.863581+00:00",
+  "price": "12.990.000₫"
+}

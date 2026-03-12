@@ -1,0 +1,64 @@
+﻿{
+  "product_code": "QREVO-C-PRO",
+  "product_name": "Roborock Qrevo C Pro",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "18.500 Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "5200 mAh"
+    },
+    {
+      "category": "Thời gian hoạt động",
+      "key": "Thời gian hoạt động (chế độ im lặng)",
+      "value": "180 phút"
+    },
+    {
+      "category": "Công suất",
+      "key": "Công suất",
+      "value": "60W"
+    },
+    {
+      "category": "Độ ồn",
+      "key": "Độ ồn",
+      "value": "64 dB"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp bụi",
+      "value": "325 ml"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp nước",
+      "value": "80 ml"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước robot",
+      "value": "350*353*96.5mm"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước trạm sạc",
+      "value": "340*487*519mm"
+    }
+  ],
+  "features": [
+    "Hệ thống chống rối 3 lớp thông minh",
+    "Giẻ lau xoay kép với tốc độ quay 200 vòng/phút",
+    "Công nghệ FlexiArm",
+    "Công nghệ Reactive Tech",
+    "Công nghệ PreciSense LiDAR",
+    "Trạm sạc đa năng"
+  ],
+  "source_confidence": "high",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:17:53.235338+00:00",
+  "price": "18.990.000₫"
+}

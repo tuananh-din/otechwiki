@@ -168,23 +168,29 @@ def get_structured_context(product_name: str, intent: str) -> str | None:
     """
     blocks = []
 
+    # Specs contain price, features, and technical data — useful for most intents
     if intent in ("price_lookup", "specifications", "feature_lookup", "comparison", "model_recommendation"):
-        # Always include pricing for price-related intents
-        pricing = lookup_pricing(product_name)
-        if pricing:
-            blocks.append(format_pricing_context(pricing))
-
-    if intent in ("specifications", "feature_lookup", "comparison", "model_recommendation"):
         specs = lookup_specs(product_name)
         if specs:
             blocks.append(format_specs_context(specs))
+
+        # Also check dedicated pricing file if available
+        pricing = lookup_pricing(product_name)
+        if pricing:
+            blocks.append(format_pricing_context(pricing))
 
     if intent in ("general", "how_to", "troubleshooting"):
         faq = lookup_faq(product_name)
         if faq:
             blocks.append(format_faq_context(faq, product_name))
+        # Fallback: also include specs for how_to if no FAQ found
+        if not faq:
+            specs = lookup_specs(product_name)
+            if specs:
+                blocks.append(format_specs_context(specs))
 
     if not blocks:
         return None
 
     return "\n\n---\n\n".join(blocks)
+

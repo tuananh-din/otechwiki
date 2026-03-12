@@ -1,0 +1,120 @@
+﻿{
+  "product_code": "SAROS-20-SONIC",
+  "product_name": "Roborock Saros 20 Sonic",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "35.000 Pa"
+    },
+    {
+      "category": "Hệ thống lau",
+      "key": "Công nghệ lau",
+      "value": "VibraRise 5.0 – 4000 vòng/phút"
+    },
+    {
+      "category": "Khung gầm",
+      "key": "Khung gầm",
+      "value": "AdaptLift™ 3.0 – vượt ngưỡng 4.5 cm + 4 cm"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Độ dày robot",
+      "value": "7.98 cm"
+    },
+    {
+      "category": "Chổi",
+      "key": "Chổi chính",
+      "value": "DuoDivide Brush"
+    },
+    {
+      "category": "Chổi",
+      "key": "Chổi cạnh",
+      "value": "FlexiArm Riser Side Brush"
+    },
+    {
+      "category": "Giẻ lau",
+      "key": "Tự động nâng giẻ",
+      "value": "8 mm"
+    },
+    {
+      "category": "Giẻ lau",
+      "key": "Tự động nâng chổi",
+      "value": "Có"
+    },
+    {
+      "category": "Giẻ lau",
+      "key": "Tự động giặt giẻ",
+      "value": "Nước nóng 100°C"
+    },
+    {
+      "category": "Giẻ lau",
+      "key": "Tự động sấy giẻ",
+      "value": "55°C"
+    },
+    {
+      "category": "Giẻ lau",
+      "key": "Tự động đổ bụi",
+      "value": "Có"
+    },
+    {
+      "category": "Nhiệt độ",
+      "key": "Nhiệt độ sấy túi bụi",
+      "value": "55°C"
+    },
+    {
+      "category": "Dock",
+      "key": "Tự làm sạch dock",
+      "value": "Có"
+    },
+    {
+      "category": "Điều hướng",
+      "key": "Điều hướng LDS",
+      "value": "LDS nâng hạ, giữ tầm nhìn 100°"
+    },
+    {
+      "category": "Tránh né vật cản",
+      "key": "Tránh né vật cản",
+      "value": "Reactive AI 3.0 + VertBeam Laser"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "6.400 mAh"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp chứa nước bẩn (robot)",
+      "value": "300 ml"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích bình nước sạch (robot)",
+      "value": "400 ml"
+    },
+    {
+      "category": "Công suất",
+      "key": "Công suất",
+      "value": "65 W"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp bụi robot",
+      "value": "228 ml"
+    },
+    {
+      "category": "Thời gian hoạt động",
+      "key": "Thời gian hoạt động (chế độ im lặng)",
+      "value": "190 phút"
+    }
+  ],
+  "features": [
+    "Tính năng tự động giặt giẻ bằng nước nóng",
+    "Điều khiển linh hoạt qua giọng nói và ứng dụng Roborock"
+  ],
+  "source_confidence": "high",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:18:08.901826+00:00",
+  "price": "35.990.000₫"
+}

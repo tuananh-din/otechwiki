@@ -1,0 +1,75 @@
+﻿{
+  "product_code": "QREVO-CURV-2-FLOW",
+  "product_name": "Roborock Qrevo Curv 2 Flow",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "20.000 Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "5200 mAh"
+    },
+    {
+      "category": "Thời gian hoạt động",
+      "key": "Thời gian hoạt động",
+      "value": "150 phút"
+    },
+    {
+      "category": "Công suất",
+      "key": "Công suất",
+      "value": "65W"
+    },
+    {
+      "category": "Độ ồn",
+      "key": "Độ ồn",
+      "value": "63 dB"
+    },
+    {
+      "category": "Chiều dài con lăn",
+      "key": "Chiều dài con lăn",
+      "value": "270mm"
+    },
+    {
+      "category": "Dung tích hộp bụi",
+      "key": "Dung tích hộp bụi robot",
+      "value": "324ml"
+    },
+    {
+      "category": "Dung tích hộp nước sạch",
+      "key": "Dung tích hộp nước sạch robot",
+      "value": "102ml"
+    },
+    {
+      "category": "Dung tích hộp chứa nước bẩn",
+      "key": "Dung tích hộp chứa nước bẩn robot",
+      "value": "100ml"
+    },
+    {
+      "category": "Kích thước robot",
+      "key": "Kích thước robot",
+      "value": "353*353*119mm"
+    },
+    {
+      "category": "Kích thước trạm sạc",
+      "key": "Kích thước trạm sạc",
+      "value": "450*450*450mm"
+    }
+  ],
+  "features": [
+    "Hệ thống chống rối kép thông minh",
+    "Con lăn siêu dài 270mm",
+    "Công nghệ Reactive AI",
+    "Hệ thống điều hướng RetractSense",
+    "Dock sạc cải tiến thế hệ mới",
+    "Chế độ thú cưng",
+    "Điều khiển từ xa qua ứng dụng Roborock"
+  ],
+  "source_confidence": "high",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:24:46.424633+00:00",
+  "price": "21.990.000₫"
+}

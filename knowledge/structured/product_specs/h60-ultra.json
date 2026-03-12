@@ -1,28 +1,71 @@
-{
-  "product_code": "H60-ULTRA",
-  "product_name": "Roborock H60 Ultra",
-  "specs": [
-    {"category": "Hiệu suất", "key": "Lực hút tối đa", "value": "35.000 Pa"},
-    {"category": "Hiệu suất", "key": "Công suất", "value": "800 W"},
-    {"category": "Pin", "key": "Dung lượng pin", "value": "7500 mAh (Li-ion)"},
-    {"category": "Pin", "key": "Thời gian sạc", "value": "~3.5 giờ"},
-    {"category": "Pin", "key": "Thời gian hoạt động", "value": "Tối đa 90 phút (chế độ tiết kiệm)"},
-    {"category": "Thiết kế", "key": "Loại sản phẩm", "value": "Máy hút bụi cầm tay không dây"},
-    {"category": "Thiết kế", "key": "Trọng lượng", "value": "2.6 kg"},
-    {"category": "Thiết kế", "key": "Màn hình", "value": "LED hiển thị pin + chế độ"},
-    {"category": "Lọc", "key": "Hệ thống lọc", "value": "HEPA 5 lớp, lọc 99.97% bụi mịn 0.3μm"},
-    {"category": "Phụ kiện", "key": "Đầu hút", "value": "Đầu hút sàn, đầu hút khe, đầu hút sofa mini, đầu hút da"}
-  ],
-  "features": [
-    "Lực hút mạnh 35.000 Pa cho sàn cứng và thảm",
-    "Pin siêu bền 7500 mAh hoạt động đến 90 phút",
-    "Hệ thống lọc HEPA 5 lớp chống bụi mịn",
-    "Thiết kế nhẹ 2.6 kg thoải mái sử dụng",
-    "Màn hình LED hiển thị mức pin và chế độ hút"
-  ],
-  "source_confidence": "medium",
-  "extraction_model": "manual",
-  "extraction_status": "draft",
-  "extracted_at": "2026-03-11T08:44:00+00:00",
-  "price": "12.990.000₫"
+﻿{
+    "product_code":  "H60-ULTRA",
+    "product_name":  "Roborock H60 Ultra",
+    "specs":  [
+                  {
+                      "category":  "Hiá»‡u suáº¥t",
+                      "key":  "Lá»±c hÃºt tá»‘i Ä‘a",
+                      "value":  "35.000 Pa"
+                  },
+                  {
+                      "category":  "Hiá»‡u suáº¥t",
+                      "key":  "CÃ´ng suáº¥t",
+                      "value":  "800 W"
+                  },
+                  {
+                      "category":  "Pin",
+                      "key":  "Dung lÆ°á»£ng pin",
+                      "value":  "7500 mAh (Li-ion)"
+                  },
+                  {
+                      "category":  "Pin",
+                      "key":  "Thá»i gian sáº¡c",
+                      "value":  "~3.5 giá»"
+                  },
+                  {
+                      "category":  "Pin",
+                      "key":  "Thá»i gian hoáº¡t Ä‘á»™ng",
+                      "value":  "Tá»‘i Ä‘a 90 phÃºt (cháº¿ Ä‘á»™ tiáº¿t kiá»‡m)"
+                  },
+                  {
+                      "category":  "Thiáº¿t káº¿",
+                      "key":  "Loáº¡i sáº£n pháº©m",
+                      "value":  "MÃ¡y hÃºt bá»¥i cáº§m tay khÃ´ng dÃ¢y"
+                  },
+                  {
+                      "category":  "Thiáº¿t káº¿",
+                      "key":  "Trá»ng lÆ°á»£ng",
+                      "value":  "2.6 kg"
+                  },
+                  {
+                      "category":  "Thiáº¿t káº¿",
+                      "key":  "MÃ n hÃ¬nh",
+                      "value":  "LED hiá»ƒn thá»‹ pin + cháº¿ Ä‘á»™"
+                  },
+                  {
+                      "category":  "Lá»c",
+                      "key":  "Há»‡ thá»‘ng lá»c",
+                      "value":  "HEPA 5 lá»›p, lá»c 99.97% bá»¥i má»‹n 0.3Î¼m"
+                  },
+                  {
+                      "category":  "Phá»¥ kiá»‡n",
+                      "key":  "Äáº§u hÃºt",
+                      "value":  "Äáº§u hÃºt sÃ n, Ä‘áº§u hÃºt khe, Ä‘áº§u hÃºt sofa mini, Ä‘áº§u hÃºt da"
+                  }
+              ],
+    "features":  [
+                     "Lá»±c hÃºt máº¡nh 35.000 Pa cho sÃ n cá»©ng vÃ  tháº£m",
+                     "Pin siÃªu bá»n 7500 mAh hoáº¡t Ä‘á»™ng Ä‘áº¿n 90 phÃºt",
+                     "Há»‡ thá»‘ng lá»c HEPA 5 lá»›p chá»‘ng bá»¥i má»‹n",
+                     "Thiáº¿t káº¿ nháº¹ 2.6 kg thoáº£i mÃ¡i sá»­ dá»¥ng",
+                     "MÃ n hÃ¬nh LED hiá»ƒn thá»‹ má»©c pin vÃ  cháº¿ Ä‘á»™ hÃºt"
+                 ],
+    "source_confidence":  "medium",
+    "extraction_model":  "manual",
+    "extraction_status":  "canonical",
+    "extracted_at":  "2026-03-11T08:44:00+00:00",
+    "price":  "12.990.000â‚«",
+    "promoted_at":  "2026-03-12T03:15:00+00:00",
+    "reviewed_by":  "admin",
+    "needs_review":  false
 }

@@ -1,0 +1,71 @@
+﻿{
+  "product_code": "F25-ACE-PRO",
+  "product_name": "Roborock F25 Ace Pro",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "25.000Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "4000mAh"
+    },
+    {
+      "category": "Nhiệt độ",
+      "key": "Nhiệt độ tự giặt",
+      "value": "95°C"
+    },
+    {
+      "category": "Nhiệt độ",
+      "key": "Nhiệt độ sấy",
+      "value": "95°C"
+    },
+    {
+      "category": "Thời gian",
+      "key": "Thời gian sấy",
+      "value": "5 - 30 phút"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Kích thước bình chứa nước sạch",
+      "value": "1000ml + 100ml (Nước lau sàn)"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Kích thước bình chứa nước bẩn",
+      "value": "Đặt đứng: 720ml | Ngã phẳng: 600ml"
+    },
+    {
+      "category": "Thời gian",
+      "key": "Thời gian hoạt động",
+      "value": "60 phút (Chế độ tiết kiệm); 40 phút (Tự động)"
+    },
+    {
+      "category": "Thời gian",
+      "key": "Thời gian sạc",
+      "value": "4 giờ"
+    },
+    {
+      "category": "Khối lượng",
+      "key": "Khối lượng",
+      "value": "5.1kg (Máy) 6.7 kg (Máy +Dock) 9.6kg (Kèm Hộp)"
+    }
+  ],
+  "features": [
+    "Cảm biến DirTech tự động nhận diện lượng bụi bẩn",
+    "Công nghệ phun bọt giúp làm mềm và đánh tan vết bẩn",
+    "Hệ thống chống rối tóc",
+    "Bánh xe AI trợ lực di chuyển mượt mà",
+    "Khả năng làm sạch sát mép",
+    "Tự giặt – tự sấy giẻ ở nhiệt độ cao",
+    "Tự động pha dung dịch tẩy rửa",
+    "Kết nối Wi-Fi & điều khiển qua ứng dụng"
+  ],
+  "source_confidence": "high",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:25:00.895236+00:00",
+  "price": "14.990.000₫"
+}

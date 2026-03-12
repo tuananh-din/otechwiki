@@ -1,0 +1,79 @@
+﻿{
+  "product_code": "SAROS-10R",
+  "product_name": "Roborock Saros 10R",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "19.000 Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "6.400 mAh"
+    },
+    {
+      "category": "Thời gian hoạt động",
+      "key": "Thời gian hoạt động (chế độ im lặng)",
+      "value": "180 phút"
+    },
+    {
+      "category": "Công suất",
+      "key": "Công suất",
+      "value": "66W"
+    },
+    {
+      "category": "Độ ồn",
+      "key": "Độ ồn",
+      "value": "61.5dB"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp bụi",
+      "value": "270 ml"
+    },
+    {
+      "category": "Dung tích",
+      "key": "Dung tích hộp nước",
+      "value": "80ml / 4L"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước Robot hút bụi",
+      "value": "350 x 353 x 79.3 mm"
+    },
+    {
+      "category": "Kích thước",
+      "key": "Kích thước Trạm sạc",
+      "value": "388 x 475 x 481 mm"
+    }
+  ],
+  "features": [
+    "Thiết kế siêu mỏng 7,98cm",
+    "Công nghệ 3D ToF điều hướng",
+    "Điều khiển từ xa qua Roborock App",
+    "Chổi xoắn kép: Công nghệ DuoDivide™ Brush",
+    "Chổi lau và khăn lau FlexiArm",
+    "Hệ Thống Nâng Hạ Khung Gầm: Công Nghệ AdaptiLift™",
+    "Nhận diện thảm thông minh",
+    "Công nghệ StarSight™ 2.0",
+    "Giẻ lau xoay kép với tốc độ quay 200 vòng/phút",
+    "Công nghệ DirTect nhận diện bụi bẩn",
+    "Công nghệ Reactive AI nhận dạng đến 62 loại chướng ngại vật",
+    "Vẽ bản đồ 3D ngôi nhà",
+    "Hỗ trợ xem video thời gian thực",
+    "Điều khiển qua giọng nói và ứng dụng Roborock thông minh",
+    "Trạm sạc đa chức năng phiên bản 3.0",
+    "Giặt giẻ lau bằng nước nóng",
+    "Phát hiện bụi thông minh",
+    "Sấy khô bằng không khí ấm",
+    "Tự động gom bụi vào túi",
+    "Tự động thêm nước vào bình",
+    "Trạm sạc làm sạch tự động"
+  ],
+  "source_confidence": "high",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:06:23.092057+00:00",
+  "price": "35.990.000₫"
+}

@@ -1,0 +1,62 @@
+﻿{
+  "product_code": "F25-ULTRA",
+  "product_name": "Roborock F25 Ultra",
+  "specs": [
+    {
+      "category": "Hiệu suất",
+      "key": "Lực hút tối đa",
+      "value": "22.000 Pa"
+    },
+    {
+      "category": "Pin",
+      "key": "Dung lượng pin",
+      "value": "4600 mAh"
+    },
+    {
+      "category": "Thời gian hoạt động",
+      "key": "Thời gian hoạt động",
+      "value": "45-60 phút (Tự động); 20 phút (Hơi nước); 15 phút (Nước nóng)"
+    },
+    {
+      "category": "Thời gian sạc",
+      "key": "Thời gian sạc",
+      "value": "4 giờ"
+    },
+    {
+      "category": "Kích thước bình chứa nước sạch",
+      "key": "Kích thước bình chứa nước sạch",
+      "value": "1000ml"
+    },
+    {
+      "category": "Kích thước bình chứa nước bẩn",
+      "key": "Kích thước bình chứa nước bẩn",
+      "value": "Đặt đứng: 720ml | Ngã phẳng: 600ml"
+    },
+    {
+      "category": "Khối lượng máy",
+      "key": "Khối lượng máy",
+      "value": "5.6kg"
+    },
+    {
+      "category": "Công suất",
+      "key": "Tổng công suất",
+      "value": "240W"
+    }
+  ],
+  "features": [
+    "Thiết kế gập 180°",
+    "Hệ thống JawScrapers chống rối tóc",
+    "Bánh xe AI trợ lực đa chiều",
+    "Phân phối nước lau sàn thông minh",
+    "Chức năng phun hơi nước 180°C và nước nóng 86°C",
+    "Hệ thống lọc bụi 5 lớp",
+    "Điều khiển qua app",
+    "Hiển thị màn hình LED & cảnh báo giọng nói",
+    "Dock sạc tích hợp tính năng giặt giẻ với nhiệt độ cao 90°C"
+  ],
+  "source_confidence": "high",
+  "extraction_model": "gpt-4o-mini",
+  "extraction_status": "draft",
+  "extracted_at": "2026-03-11T03:18:35.180623+00:00",
+  "price": "14.990.000₫"
+}
