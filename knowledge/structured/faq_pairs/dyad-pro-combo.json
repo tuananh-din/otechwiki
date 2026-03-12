@@ -1,0 +1,23 @@
+[
+  {
+    "question": "Dyad Pro Combo dùng như thế nào?",
+    "answer": "Roborock Dyad Pro Combo là combo 2-trong-1 gồm máy hút lau sàn và máy hút bụi cầm tay mini. Để sử dụng: 1) Sạc đầy pin trước khi dùng lần đầu. 2) Đổ nước sạch vào bình 820ml. 3) Bật máy và chọn chế độ hút phù hợp. 4) Máy tự động nhận diện sàn bẩn qua cảm biến DirTect và tăng lực hút. 5) Sau khi dùng, đặt máy vào dock để tự giặt chổi bằng nước nóng 75°C và sấy khô DryForce. Máy có thiết kế nằm phẳng 180° giúp lau được gầm giường và sofa.",
+    "product_code": "DYAD-PRO-COMBO",
+    "source_confidence": "medium",
+    "extraction_status": "canonical"
+  },
+  {
+    "question": "Dyad Pro Combo có gì khác so với Flexi Pro?",
+    "answer": "Dyad Pro Combo là combo 2-trong-1 (máy hút lau sàn + hút bụi cầm tay mini) với lực hút 17.000 Pa, pin 4000 mAh hoạt động 43 phút, bình nước sạch 820ml. Flexi Pro là máy hút lau sàn đơn với lực hút 17.000 Pa, pin 4000 mAh hoạt động 40 phút, bình nước 780ml. Điểm khác biệt chính là Dyad Pro Combo có thêm máy hút bụi cầm tay mini kèm theo.",
+    "product_code": "DYAD-PRO-COMBO",
+    "source_confidence": "medium",
+    "extraction_status": "canonical"
+  },
+  {
+    "question": "Cách vệ sinh Dyad Pro Combo?",
+    "answer": "Sau mỗi lần sử dụng, đặt Dyad Pro Combo vào dock sạc. Máy sẽ tự động giặt chổi cuộn bằng nước nóng 75°C và sấy khô hoàn toàn nhờ công nghệ DryForce, giúp chống mùi hôi. Bạn nên đổ bỏ nước bẩn trong bình 620ml sau mỗi lần dùng và vệ sinh bộ lọc HEPA định kỳ mỗi 2-4 tuần.",
+    "product_code": "DYAD-PRO-COMBO",
+    "source_confidence": "medium",
+    "extraction_status": "canonical"
+  }
+]

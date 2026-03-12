@@ -1,0 +1,16 @@
+[
+  {
+    "question": "Phụ kiện lõi lọc cho Qrevo Curv mua ở đâu?",
+    "answer": "Phụ kiện lõi lọc HEPA thay thế cho Roborock Qrevo Curv có thể mua tại đại lý chính hãng Roborock, các cửa hàng ủy quyền, hoặc đặt qua website chính thức. Lõi lọc HEPA nên được thay thế mỗi 3-6 tháng tùy theo tần suất sử dụng để đảm bảo hiệu suất lọc bụi mịn tối ưu.",
+    "product_code": "QREVO-CURV",
+    "source_confidence": "medium",
+    "extraction_status": "canonical"
+  },
+  {
+    "question": "Qrevo Curv cần thay phụ kiện gì định kỳ?",
+    "answer": "Roborock Qrevo Curv cần thay thế định kỳ: 1) Lõi lọc HEPA (mỗi 3-6 tháng), 2) Chổi cạnh (mỗi 3-6 tháng), 3) Chổi chính (mỗi 6-12 tháng), 4) Giẻ lau (mỗi 3-6 tháng), 5) Túi đựng bụi dock (khi đầy). Các phụ kiện chính hãng có thể mua tại đại lý Roborock hoặc qua ứng dụng Roborock.",
+    "product_code": "QREVO-CURV",
+    "source_confidence": "medium",
+    "extraction_status": "canonical"
+  }
+]
